@@ -42,8 +42,10 @@ extern SSC_EXPORT
     each time just before context switching the currently running fiber.
     Useful for preparing some kind of environment to do a context-switch */
 /*----------------------------------------------------------------------------*/
+#ifdef SSC_BEFORE_FIBER_CONTEXT_SWITCH_EVT
 extern SSC_EXPORT
   void ssc_sim_before_fiber_context_switch (void* sim_context);
+#endif /*#ifdef SSC_BEFORE_FIBER_CONTEXT_SWITCH_EVT*/
 /*----------------------------------------------------------------------------*/
 #ifdef SSC_SHAREDLIB
 /*----------------------------------------------------------------------------*/

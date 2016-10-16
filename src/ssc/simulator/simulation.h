@@ -11,9 +11,11 @@ typedef void (*ssc_sim_dealloc_signature)(
   void const* mem, uword size, ssc_group_id id, void* sim_context
   );
 /*----------------------------------------------------------------------------*/
+#ifdef SSC_BEFORE_FIBER_CONTEXT_SWITCH_EVT
 typedef void (*ssc_sim_before_fiber_context_switch_signature)(
   void* sim_context
   );
+#endif /*#ifdef SSC_BEFORE_FIBER_CONTEXT_SWITCH_EVT*/
 /*----------------------------------------------------------------------------*/
 #ifdef SSC_SHAREDLIB
 #include <bl/base/sharedlib_load.h>
@@ -62,8 +64,10 @@ extern bl_err ssc_simlib_load (ssc_simlib* si, char const* path);
 #define ssc_simulation_dealloc_func(simptr)\
   (simptr)->dealloc
 
+#ifdef SSC_BEFORE_FIBER_CONTEXT_SWITCH_EVT
 #define ssc_simulation_before_fiber_context_switch_func(simptr)\
   (simptr)->before_fiber_context_switch
+#endif
 /*----------------------------------------------------------------------------*/
 #else /*SSC_SHAREDLIB*/
 /*----------------------------------------------------------------------------*/
@@ -81,8 +85,10 @@ extern bl_err ssc_simlib_load (ssc_simlib* si, char const* path);
 #define ssc_simulation_dealloc_func(simptr)\
   ssc_sim_dealloc
 
+#ifdef SSC_BEFORE_FIBER_CONTEXT_SWITCH_EVT
 #define ssc_simulation_before_fiber_context_switch_func(simptr)\
   ssc_sim_before_fiber_context_switch
+#endif
 /*----------------------------------------------------------------------------*/
 #endif /*SSC_SHAREDLIB*/
 /*----------------------------------------------------------------------------*/

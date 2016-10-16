@@ -57,7 +57,9 @@ static inline void fiber_node_yield_to_sched (gsched_fibers_node* fn)
 {
   fn->fiber.state.func_count = 0;
   ssc_global* global         = fn->fiber.parent->global;
+#ifdef SSC_BEFORE_FIBER_CONTEXT_SWITCH_EVT
   global->sim_before_fiber_context_switch (global->sim_context);
+#endif
   coro_transfer (&fn->fiber.coro_ctx, &global->main_coro_ctx);
 }
 /*----------------------------------------------------------------------------*/
