@@ -38,6 +38,13 @@ extern SSC_EXPORT
     void const* mem, uword size, ssc_group_id id, void* sim_context
     );
 /*----------------------------------------------------------------------------*/
+/* ssc_sim_before_fiber_context_switch: This is called from the simulator
+    each time just before context switching the currently running fiber.
+    Useful for preparing some kind of environment to do a context-switch */
+/*----------------------------------------------------------------------------*/
+extern SSC_EXPORT
+  void ssc_sim_before_fiber_context_switch (void* sim_context);
+/*----------------------------------------------------------------------------*/
 #ifdef SSC_SHAREDLIB
 /*----------------------------------------------------------------------------*/
 /* ssc_sim_manual_link: defined on "simulation_src.h". It just has to be

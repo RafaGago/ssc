@@ -56,9 +56,9 @@ static inline void node_queue_transfer_tail(
 static inline void fiber_node_yield_to_sched (gsched_fibers_node* fn)
 {
   fn->fiber.state.func_count = 0;
-  coro_transfer(
-    &fn->fiber.coro_ctx, &fn->fiber.parent->global->main_coro_ctx
-    );
+  ssc_global* global         = fn->fiber.parent->global;
+  global->sim_before_fiber_context_switch (global->sim_context);
+  coro_transfer (&fn->fiber.coro_ctx, &global->main_coro_ctx);
 }
 /*----------------------------------------------------------------------------*/
 static void gsched_fiber_drop_input_head (gsched_fiber* f);

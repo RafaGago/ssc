@@ -6,10 +6,11 @@
 void ssc_simlib_unload (ssc_simlib* sl)
 {
   bl_sharedlib_unload (sl->lib);
-  sl->manual_link = nullptr;
-  sl->on_setup    = nullptr;
-  sl->on_teardown = nullptr;
-  sl->dealloc     = nullptr;
+  sl->manual_link                 = nullptr;
+  sl->on_setup                    = nullptr;
+  sl->on_teardown                 = nullptr;
+  sl->dealloc                     = nullptr;
+  sl->before_fiber_context_switch = nullptr;
 }
 /*----------------------------------------------------------------------------*/
 #define ssc_simlib_fn_load_impl_priv(si, name)\
@@ -34,6 +35,7 @@ bl_err ssc_simlib_load (ssc_simlib* si, char const* path)
   ssc_simlib_fn_load_impl_priv (si, on_setup)
   ssc_simlib_fn_load_impl_priv (si, on_teardown)
   ssc_simlib_fn_load_impl_priv (si, dealloc)
+  ssc_simlib_fn_load_impl_priv (si, before_fiber_context_switch)
   return bl_ok;
 fail:
   ssc_simlib_unload (si);

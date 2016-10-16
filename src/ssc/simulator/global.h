@@ -10,12 +10,13 @@
 
 /*----------------------------------------------------------------------------*/
 typedef struct ssc_global {
-  coro_context                main_coro_ctx;
-  taskq*                      tq;
-  ssc_out_q                 out_queue;
-  void*                       sim_context;
-  ssc_sim_dealloc_signature sim_dealloc;
-  alloc_tbl const*            alloc;
+  coro_context                                  main_coro_ctx;
+  taskq*                                        tq;
+  ssc_out_q                                     out_queue;
+  void*                                         sim_context;
+  ssc_sim_dealloc_signature                     sim_dealloc;
+  ssc_sim_before_fiber_context_switch_signature sim_before_fiber_context_switch;
+  alloc_tbl const*                              alloc;
 }
 ssc_global;
 /*----------------------------------------------------------------------------*/

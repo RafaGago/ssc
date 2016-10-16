@@ -15,6 +15,7 @@ typedef void (*ssc_sim_env_on_teardown_signature) (void* sim_context);
 typedef struct sim_env {
   ssc_fiber_cfg*                    cfg;
   uword                             cfg_count;
+  uword                             context_switch_count;
   ssc_sim_env_dealloc_signature     dealloc;
   ssc_sim_env_on_teardown_signature teardown;
   void*                             ctx;

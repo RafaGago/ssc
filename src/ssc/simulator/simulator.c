@@ -177,6 +177,8 @@ SSC_SIM_EXPORT bl_err ssc_create(
     goto mem_dealloc;
   }
   sim->global.sim_dealloc = ssc_simulation_dealloc_func (&sim->lib);
+  sim->global.sim_before_fiber_context_switch =
+    ssc_simulation_before_fiber_context_switch_func (&sim->lib);
 
   /*init out queue*/
   ssc_cfg global_cfg;

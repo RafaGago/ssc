@@ -36,3 +36,9 @@ void ssc_sim_dealloc(
   env->dealloc (mem, size, id, sim_context);
 }
 /*----------------------------------------------------------------------------*/
+void ssc_sim_before_fiber_context_switch (void* sim_context)
+{
+  sim_env* env = sim_context;
+  ++env->context_switch_count;
+}
+/*----------------------------------------------------------------------------*/

@@ -241,7 +241,7 @@ static void queue_no_match_test (void **state)
   assert_true (!err);
   assert_true (ctx->fsetup_count == 1);
 
-  uword             count;
+  uword           count;
   ssc_output_data read;
 
   err = ssc_try_run_some (ctx->sim);
