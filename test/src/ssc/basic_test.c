@@ -67,7 +67,7 @@ static void test_fiber_teardown (void* fiber_context, void* sim_context)
   ++ctx->fteardown_count;
 }
 /*---------------------------------------------------------------------------*/
-static void queue_test_fiber(
+static void fiber_to_test_the_queue(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
@@ -88,7 +88,7 @@ static void queue_test_fiber(
   }
 }
 /*---------------------------------------------------------------------------*/
-static void queue_test_timeout_fiber(
+static void fiber_to_test_queue_timeout(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
@@ -109,7 +109,7 @@ static void queue_test_timeout_fiber(
   ssc_produce_dynamic_output (h, memr16_rv ((void*) &fiber_resp, 1));
 }
 /*---------------------------------------------------------------------------*/
-static void test_delay_fiber(
+static void fiber_to_test_delay(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
@@ -188,7 +188,7 @@ static int queue_test_setup (void **state)
 {
   ssc_fiber_cfg fibers[1];
   fibers[0] = ssc_fiber_cfg_rv(
-    0, queue_test_fiber, test_fiber_setup, test_fiber_teardown, &g_ctx
+    0, fiber_to_test_the_queue, test_fiber_setup, test_fiber_teardown, &g_ctx
     );
   generic_test_setup (state, fibers, arr_elems (fibers));
   return 0;
@@ -198,7 +198,7 @@ static int queue_timeout_test_setup (void **state)
 {
   ssc_fiber_cfg fibers[1];
   fibers[0] = ssc_fiber_cfg_rv(
-    0, queue_test_timeout_fiber, test_fiber_setup, test_fiber_teardown, &g_ctx
+    0, fiber_to_test_queue_timeout, test_fiber_setup, test_fiber_teardown, &g_ctx
     );
   generic_test_setup (state, fibers, arr_elems (fibers));
   return 0;
@@ -208,7 +208,7 @@ static int delay_test_setup (void **state)
 {
   ssc_fiber_cfg fibers[1];
   fibers[0] = ssc_fiber_cfg_rv(
-    0, test_delay_fiber, test_fiber_setup, test_fiber_teardown, &g_ctx
+    0, fiber_to_test_delay, test_fiber_setup, test_fiber_teardown, &g_ctx
     );
   generic_test_setup (state, fibers, arr_elems (fibers));
   return 0;
