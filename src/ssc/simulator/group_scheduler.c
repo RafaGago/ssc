@@ -190,6 +190,15 @@ static inline void fiber_node_program_timed(
   gsched_timed_insert (&gs->timed, &e);
 }
 /*----------------------------------------------------------------------------*/
+static inline void fiber_node_cancel_timed(
+  gsched* gs, gsched_fibers_node* n, tstamp t
+  )
+{
+  gsched_timed_value tv, dummy;
+  tv.fn = n;
+  gsched_timed_try_get_and_drop (&gs->timed, &dummy, t, &tv);
+}
+/*----------------------------------------------------------------------------*/
 static void fiber_node_yield_until_fiber_time(
   gsched* gs, gsched_fibers_node* fn
   )
@@ -329,14 +338,16 @@ memr16 ssc_api_timed_peek_input_head (ssc_handle h, toffset us)
   fn->fiber.state.params.qread.match = nullptr;
   fn->fiber.state.params.qread.mask  = nullptr;
 
-  fiber_node_program_timed(
-    gs, fn, fn->fiber.state.time + bl_usec_to_tstamp (us)
-    );
+  tstamp timeout_deadline = fn->fiber.state.time + bl_usec_to_tstamp (us);
+  fiber_node_program_timed (gs, fn, timeout_deadline);
   node_queue_transfer_tail (&gs->sq[q_queue], &gs->sq[q_run], fn);
   fiber_node_yield_to_sched (fn);
   /*will be rescheduled when some data is available or after timing out*/
   fn->fiber.state.id = f_run;
   ret                = ssc_api_try_peek_input_head (h);
+  if (!memr16_is_null (ret)) { /*no timeout: self remove from the timed queue*/
+    fiber_node_cancel_timed (gs, fn, timeout_deadline);
+  }
   return ret;
 }
 /*----------------------------------------------------------------------------*/
@@ -513,16 +524,20 @@ static memr16 ssc_api_peek_input_head_match_mask_impl(
   fn->fiber.state.params.qread.mask       = memr16_beg_as (mask, u8);
   fn->fiber.state.params.qread.mask_size  = memr16_size (mask);
 
+  tstamp timeout_deadline;
   if (timed) {
-    fiber_node_program_timed(
-      gs, fn, fn->fiber.state.time + bl_usec_to_tstamp (us)
-      );
+    timeout_deadline = fn->fiber.state.time + bl_usec_to_tstamp (us);
+    fiber_node_program_timed (gs, fn, timeout_deadline);
   }
   node_queue_transfer_tail (&gs->sq[q_queue], &gs->sq[q_run], fn);
   fiber_node_yield_to_sched (fn);
   /*will be rescheduled when matching data is available or after timing out*/
   fn->fiber.state.id = f_run;
-  return ssc_api_try_peek_input_head (h);
+  ret = ssc_api_try_peek_input_head (h);
+  if (!memr16_is_null (ret)) { /*no timeout: self remove from the timed queue*/
+    fiber_node_cancel_timed (gs, fn, timeout_deadline);
+  }
+  return ret;
 }
 /*----------------------------------------------------------------------------*/
 memr16 ssc_api_timed_peek_input_head_match_mask(
