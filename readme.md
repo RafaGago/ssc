@@ -37,7 +37,7 @@ of the application that uses the library and the simulation code to give meaning
 and to parse them back and forth.
 
 There is an example program that static links the simulator and simulation in
-the example/src folder.
+the [example/src folder](https://github.com/RafaGago/ssc/tree/master/example/src/ssc).
 
 Features
 ========
@@ -47,7 +47,7 @@ Features
 -Can load simulations as shared libraries or be statically linked with them.
 
 -The simulation API is thought from scratch to be used from a script language.
- LUA bindings exist.
+ [LUA bindings exist](https://github.com/RafaGago/ssc_lua).
  
 -All the processes on the simulation run from the same thread, so there is no
  need for locking and the memory visibility is guaranteed.
