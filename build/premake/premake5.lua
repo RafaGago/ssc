@@ -18,6 +18,7 @@ local cmocka_include       = cmocka .. "/include"
 local repo_include         = repo .. "/include"
 local repo_src             = repo .. "/src"
 local repo_test_src        = repo .. "/test/src"
+local repo_example_src     = repo .. "/example/src"
 local repo_build           = repo .. "/build"
 
 local stage                = repo_build .. "/stage/" .. os.get()
@@ -177,3 +178,12 @@ project (projname .. "_test")
     projname .. "_static"
     }
 
+project (projname .. "_example")
+  kind "ConsoleApp"
+  language "C"
+  files {
+    repo_example_src .. "/**.c",
+    }
+  links {
+    projname .. "_static"
+    }

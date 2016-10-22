@@ -36,6 +36,9 @@ Those messages are byte streams without a given meaning, it is the task
 of the application that uses the library and the simulation code to give meaning
 and to parse them back and forth.
 
+There is an example program that static links the simulator and simulation in
+the example/src folder.
+
 Features
 ========
 
