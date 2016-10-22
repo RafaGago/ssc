@@ -80,7 +80,7 @@ Be aware that cmocka requires CMake.
 > git submodule update --init --recursive
 >
 > cd dependencies
-<
+>
 > ./prepare_dependencies.sh
 >
 > cd ../build/premake
