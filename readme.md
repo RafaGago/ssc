@@ -75,14 +75,19 @@ Very basic testing done.
 Build (Linux)
 =============
 
-Be aware that cmocka used on base_library requires CMake.
+Be aware that cmocka requires CMake.
 
-git submodule init && git submodule update
-cd dependencies
-./prepare_dependencies.sh
-cd ../build/premake
-premake5 gmake
-make -C ../linux config=release verbose=yes
+> git submodule update --init --recursive
+>
+> cd dependencies
+<
+> ./prepare_dependencies.sh
+>
+> cd ../build/premake
+>
+> premake5 gmake
+>
+> make -C ../linux config=release verbose=yes
 
 Build (Windows)
 ===============
