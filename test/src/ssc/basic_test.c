@@ -37,10 +37,11 @@ basic_tests_ctx;
 /*---------------------------------------------------------------------------*/
 /*TRANSLATION UNIT GLOBALS*/
 /*---------------------------------------------------------------------------*/
-static const void* fiber_context_const = (void*) 0xfe;
-static const u8    fiber_match         = 0xdd;
-static const u8    fiber_resp          = 0xee;
-static const uword queue_timeout_us    = 1000;
+static const void* fiber_context_const   = (void*) 0xfe;
+static const u8    fiber_match           = 0xdd;
+static const u8    fiber_resp            = 0xee;
+static const uword queue_timeout_us      = 1000;
+static const uword queue_timeout_long_us = 150000;
 /*---------------------------------------------------------------------------*/
 static basic_tests_ctx g_ctx;
 static sim_env         g_env;
@@ -109,6 +110,35 @@ static void fiber_to_test_queue_timeout(
   ssc_produce_dynamic_output (h, memr16_rv ((void*) &fiber_resp, 1));
 }
 /*---------------------------------------------------------------------------*/
+static void fiber_to_test_queue_timeout_cancellation(
+  ssc_handle h, void* fiber_context, void* sim_context
+  )
+{
+  sim_env* env         = (sim_env*) sim_context;
+  basic_tests_ctx* ctx = (basic_tests_ctx*) env->ctx;
+  assert_true (sim_context == (void*) &g_env);
+  assert_true (fiber_context == (void*) &g_ctx);
+
+  memr16 match = memr16_rv ((void*) &fiber_match, 1);
+  tstamp start = ssc_get_timestamp (h);
+  memr16 in    = ssc_timed_peek_input_head_match(
+    h, match, queue_timeout_long_us
+    );
+  assert_true (!memr16_is_null (in));
+  ssc_drop_input_head (h);
+  ssc_produce_dynamic_output (h, memr16_rv ((void*) &fiber_resp, 1));
+  /*this should block on the queue forever, we are trying to see if this wakes
+    up, so we block on the queue again indefinitely, this should cause the
+    internals to be in a "blocked on queue" state*/
+  in = ssc_peek_input_head_match (h, match);
+  /*this should never be reached, if the fiber gets rescheduled is that the
+    timeout on ssc_timed_peek_input_head_match wasn't successfully cancelled.
+    Waking up can trigger assertions, as "ssc_peek_input_head_match" can't
+    return a null. This is a bug regression.
+    */
+  ssc_produce_dynamic_output (h, memr16_rv ((void*) &fiber_resp, 1));
+}
+/*---------------------------------------------------------------------------*/
 static void fiber_to_test_delay(
   ssc_handle h, void* fiber_context, void* sim_context
   )
@@ -126,7 +156,7 @@ static void fiber_to_test_delay(
   ssc_produce_dynamic_output (h, memr16_rv ((void*) &fiber_resp, 1));
 }
 /*---------------------------------------------------------------------------*/
-static void test_wait_timeout(
+static void fiber_to_test_wait_timeout(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
@@ -198,7 +228,25 @@ static int queue_timeout_test_setup (void **state)
 {
   ssc_fiber_cfg fibers[1];
   fibers[0] = ssc_fiber_cfg_rv(
-    0, fiber_to_test_queue_timeout, test_fiber_setup, test_fiber_teardown, &g_ctx
+    0,
+    fiber_to_test_queue_timeout,
+    test_fiber_setup,
+    test_fiber_teardown,
+     &g_ctx
+    );
+  generic_test_setup (state, fibers, arr_elems (fibers));
+  return 0;
+}
+/*---------------------------------------------------------------------------*/
+static int queue_timeout_test_timeout_cancellation_setup (void **state)
+{
+  ssc_fiber_cfg fibers[1];
+  fibers[0] = ssc_fiber_cfg_rv(
+    0,
+    fiber_to_test_queue_timeout_cancellation,
+    test_fiber_setup,
+    test_fiber_teardown,
+    &g_ctx
     );
   generic_test_setup (state, fibers, arr_elems (fibers));
   return 0;
@@ -218,7 +266,11 @@ static int test_wait_timeout_setup (void **state)
 {
   ssc_fiber_cfg fibers[1];
   fibers[0] = ssc_fiber_cfg_rv(
-    0, test_wait_timeout, test_fiber_setup, test_fiber_teardown, &g_ctx
+    0,
+    fiber_to_test_wait_timeout,
+     test_fiber_setup,
+      test_fiber_teardown,
+       &g_ctx
     );
   generic_test_setup (state, fibers, arr_elems (fibers));
   return 0;
@@ -362,6 +414,59 @@ static void answer_after_blocking_timeout_test (void **state)
   assert_true (ctx->teardown_count == 1);
 }
 /*---------------------------------------------------------------------------*/
+static void timeout_correctly_cancelled_test (void **state)
+{
+  basic_tests_ctx* ctx = (basic_tests_ctx*) *state;
+  bl_err err = ssc_run_setup (ctx->sim);
+  assert_true (!err);
+  assert_true (ctx->fsetup_count == 1);
+
+  uword count;
+  ssc_output_data read;
+
+  err = ssc_try_run_some (ctx->sim);
+  assert_true (!err); /*fiber blocked on queue with timeout active*/
+
+  /*writing matching data*/
+  u8* send = ssc_alloc_write_bytestream (ctx->sim, 1);
+  assert_non_null (send);
+
+  *send = fiber_match;
+  err  = ssc_write (ctx->sim, 0, send, 1);
+  assert (!err);
+
+  /*checking that the fiber did actually receive the message an is blocked*/
+  err = ssc_try_run_some (ctx->sim);
+  assert_true (!err);
+  /*fiber blocked on queue without timeout now, check message on the read queue
+    to confirm*/
+  err = ssc_read (ctx->sim, &count, &read, 1, queue_timeout_us * 20);
+  assert_true (!err);
+  assert_true (read.type == ssc_type_dynamic_bytes);
+  assert_true (read.gid == 0);
+  memr16 rd = ssc_output_read_as_bytes (&read);
+  assert_true (!memr16_is_null (rd));
+  assert_true (memr16_size (rd) == 1);
+  assert_true (*memr16_beg_as (rd, u8) == fiber_resp);
+
+  /*checking that the timeout is correctly cancelled, the assertion on the fiber
+    shouldn't trigger*/
+  tstamp deadline = bl_get_tstamp() +
+    (3 * bl_usec_to_tstamp (queue_timeout_long_us));
+
+  do {
+    err = ssc_run_some (ctx->sim, 10000);
+    err = ssc_read (ctx->sim, &count, &read, 1, 0);
+    assert_true (count == 0);
+  }
+  while (tstamp_get_diff (bl_get_tstamp(), deadline) <= 0);
+
+  /*Success*/
+  err = ssc_run_teardown (ctx->sim);
+  assert_true (!err);
+  assert_true (ctx->teardown_count == 1);
+}
+/*---------------------------------------------------------------------------*/
 static void delay_test (void **state)
 {
   basic_tests_ctx* ctx = (basic_tests_ctx*) *state;
@@ -404,10 +509,12 @@ static const struct CMUnitTest tests[] = {
     answer_after_blocking_timeout_test, queue_timeout_test_setup, test_teardown
     ),
   cmocka_unit_test_setup_teardown(
-    delay_test, delay_test_setup, test_teardown
+    timeout_correctly_cancelled_test,
+    queue_timeout_test_timeout_cancellation_setup,
+    test_teardown
     ),
   cmocka_unit_test_setup_teardown(
-    answer_after_blocking_timeout_test, test_wait_timeout_setup, test_teardown
+    delay_test, delay_test_setup, test_teardown
     ),
 };
 /*---------------------------------------------------------------------------*/
