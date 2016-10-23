@@ -20,8 +20,9 @@ typedef struct ssc_simulator_ftable {
   memr16 (*timed_peek_input_head)  (ssc_handle h, toffset us);
   memr16 (*try_peek_input_head)    (ssc_handle h);
   void   (*drop_input_head)        (ssc_handle h);
+  void   (*drop_all_input)         (ssc_handle h);
   void   (*delay)                  (ssc_handle h, toffset us);
-  tstamp (*get_timestamp)          (ssc_handle h);  
+  tstamp (*get_timestamp)          (ssc_handle h);
   void   (*produce_static_output)  (ssc_handle h, memr16 o);
   void   (*produce_dynamic_output) (ssc_handle h, memr16 o);
   void   (*produce_error)(

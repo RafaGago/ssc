@@ -281,8 +281,13 @@ void sem_wait_fiber(
   static const char str[]  = "semaphore signal received";
   context* c = (context*) sim_context;
   while (true) {
-    ssc_sem_wait (&c->sem, h, 0); /*0 = fully blocking */
-    ssc_produce_static_string (h, str, sizeof str);
+    bool signaled = ssc_sem_wait (&c->sem, h, 100000);
+    if (signaled) {
+      ssc_produce_static_string (h, str, sizeof str);
+    }
+    /*fibers that don't read the input queue must release each input message
+      reference count manually to allow resource deallocation*/
+    ssc_drop_all_input (h);
   }
 }
 /*----------------------------------------------------------------------------*/

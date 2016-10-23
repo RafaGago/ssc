@@ -157,6 +157,13 @@ static inline memr16 ssc_try_peek_input_head (ssc_handle h);
 /*----------------------------------------------------------------------------*/
 static inline void ssc_drop_input_head (ssc_handle h);
 /*----------------------------------------------------------------------------*/
+/*ssc_drop_all_input: Drops (consumes) all the data present on the input queue
+  without reading it. Must be used perioducally by fibers that input the ignore
+  queue to decrease each input message reference count and allow resource
+  deallocation */
+/*----------------------------------------------------------------------------*/
+static inline void ssc_drop_all_input (ssc_handle h);
+/*----------------------------------------------------------------------------*/
 /* match/match+mask variants of the functions above:
 
   The functions below consume the input queue head until a "match" is found.

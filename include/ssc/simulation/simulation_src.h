@@ -1,5 +1,5 @@
-/* 
-  THIS FILE CONTAINS DEFINITIONS (NOT DECLARATIONS) OF LIBRARY CODE TO BE 
+/*
+  THIS FILE CONTAINS DEFINITIONS (NOT DECLARATIONS) OF LIBRARY CODE TO BE
   INCLUDED BY EACH SIMULATION IN JUST ONE TRANSLATION UNIT (AKA .c/.cpp file)
 
   This file defines some helper functions that are simple compositions or
@@ -30,6 +30,7 @@ void SSC_EXPORT ssc_manual_link_to_simulator(
   bl_assert_always (t->timed_peek_input_head);
   bl_assert_always (t->try_peek_input_head);
   bl_assert_always (t->drop_input_head);
+  bl_assert_always (t->drop_all_input);
   bl_assert_always (t->delay);
   bl_assert_always (t->get_timestamp);
   bl_assert_always (t->produce_static_output);

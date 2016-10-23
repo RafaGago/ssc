@@ -63,7 +63,7 @@ static inline void fiber_node_yield_to_sched (gsched_fibers_node* fn)
   coro_transfer (&fn->fiber.coro_ctx, &global->main_coro_ctx);
 }
 /*----------------------------------------------------------------------------*/
-static void gsched_fiber_drop_input_head (gsched_fiber* f);
+static void gsched_fiber_drop_all_input (gsched_fiber* f);
 /*----------------------------------------------------------------------------*/
 static void fiber_function (void* arg)
 {
@@ -74,9 +74,7 @@ static void fiber_function (void* arg)
   node_queue_transfer_tail(
     &f->fiber.parent->finished, &f->fiber.parent->sq[q_run], f
     );
-  while (gsched_fiber_queue_size (&f->fiber.queue) > 0) {
-    gsched_fiber_drop_input_head (&f->fiber);
-  }
+  gsched_fiber_drop_all_input (&f->fiber);
   --f->fiber.parent->active_fibers;
   fiber_node_yield_to_sched (f); /*we can't return on libcoro*/
 }
@@ -113,7 +111,9 @@ static inline bl_err fiber_init(
 /*----------------------------------------------------------------------------*/
 static void gsched_fiber_drop_input_head (gsched_fiber* f)
 {
-  bl_assert (gsched_fiber_queue_size (&f->queue) > 0);
+  if (unlikely (gsched_fiber_queue_size (&f->queue) <= 0)) {
+    return;
+  }
   u8* in_bstream = *gsched_fiber_queue_at_head (&f->queue);
   u8* refc       = in_bstream_refcount (in_bstream);
   gsched_fiber_queue_drop_head (&f->queue);
@@ -124,11 +124,16 @@ static void gsched_fiber_drop_input_head (gsched_fiber* f)
   }
 }
 /*----------------------------------------------------------------------------*/
-static void fiber_destroy (gsched_fiber* f)
+static void gsched_fiber_drop_all_input (gsched_fiber* f)
 {
   while (gsched_fiber_queue_size (&f->queue) > 0) {
     gsched_fiber_drop_input_head (f);
   }
+}
+/*----------------------------------------------------------------------------*/
+static void fiber_destroy (gsched_fiber* f)
+{
+  gsched_fiber_drop_all_input (f);
   coro_stack_free (&f->stack);
 }
 /*----------------------------------------------------------------------------*/
@@ -562,8 +567,16 @@ void ssc_api_drop_input_head (ssc_handle h)
 {
   gsched_fibers_node* fn = (gsched_fibers_node*) h;
   gsched*             gs = fn->fiber.parent;
-  fiber_node_forward_progress_limit (gs, fn);
   gsched_fiber_drop_input_head (&fn->fiber);
+  fiber_node_forward_progress_limit (gs, fn);
+}
+/*----------------------------------------------------------------------------*/
+void ssc_api_drop_all_input(ssc_handle h)
+{
+  gsched_fibers_node* fn = (gsched_fibers_node*) h;
+  gsched*             gs = fn->fiber.parent;
+  gsched_fiber_drop_all_input (&fn->fiber);
+  fiber_node_forward_progress_limit (gs, fn);
 }
 /*----------------------------------------------------------------------------*/
 void ssc_api_produce_error(

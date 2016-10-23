@@ -43,14 +43,20 @@ Features
 ========
 
 -Can be built as a static or shared library.
+
 -Can load simulations as shared libraries or be statically linked with them.
+
 -The simulation API is thought from scratch to be used from a script language.
  LUA bindings exist.
+
 -All the processes on the simulation run from the same thread, so there is no
  need for locking and the memory visibility is guaranteed.
+
 -The send/receive functions of the simulator are thread-safe.
+
 -The cooperative scheduler can do soft context switching, and hence each
  simulation process has its own stack.
+
 -It has lookahead, the scheduler can keep simulating if it detects that the
  given process isn't blocked waiting for further messages.
 
@@ -60,6 +66,9 @@ Known quirks
 Select the simulation process/fiber stack size wisely. Otherwise they will
 show as segfaults. This is done on the "ssc_add_fiber" function through the
 cfg parameter.
+
+Remember that each fiber that doesn't read the input queue must periodically
+deallocate the input messages manually through the "ssc_drop_all_input" call.
 
 Current status
 ==============
