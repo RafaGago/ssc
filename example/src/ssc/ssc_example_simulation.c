@@ -26,6 +26,9 @@ void produce_error_fiber (ssc_handle h, void* fiber_context, void* sim_context)
   while (true) {
     ssc_delay (h, c->timebase_us);
     ssc_produce_error (h, bl_ok, "bl_ok: custom string");
+    /*fibers that don't read the input queue must release each input message
+      reference count manually to allow resource deallocation*/
+    ssc_drop_all_input (h);
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -38,6 +41,7 @@ void produce_static_bytes_fiber(
   while (true) {
     ssc_delay (h, c->timebase_us);
     ssc_produce_static_output (h, memr16_rv ((void*) bytes, sizeof bytes));
+    ssc_drop_all_input (h);
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -57,6 +61,7 @@ void produce_dynamic_bytes_fiber(
     ssc_produce_dynamic_output (h, memr16_rv ((void*) mem, sizeof bytes));
     /* we have lost "mem" ownership, the chunk may be deallocated by
        through "ssc_sim_dealloc" before arriving here, don't reuse "mem" */
+    ssc_drop_all_input (h);
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -69,6 +74,7 @@ void produce_static_string_fiber(
   while (true) {
     ssc_delay (h, c->timebase_us);
     ssc_produce_static_string (h, str, sizeof str);
+    ssc_drop_all_input (h);
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -88,6 +94,7 @@ void produce_dynamic_string_fiber(
     ssc_produce_dynamic_string (h, mem, sizeof str);
     /* we have lost "mem" ownership, the chunk may be deallocated by
        through "ssc_sim_dealloc" before arriving here, don't reuse "mem" */
+    ssc_drop_all_input (h);
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -248,6 +255,7 @@ void timestamp_fiber (ssc_handle h, void* fiber_context, void* sim_context)
     tstamp now = ssc_get_timestamp (h);
     if (tstamp_get_diff (now, deadline) >= 0) {
       ssc_produce_static_string (h, str, sizeof str);
+      ssc_drop_all_input (h);
       deadline = now + bl_usec_to_tstamp (c->timebase_us);
     }
     ssc_delay (h, 100000);
