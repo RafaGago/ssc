@@ -38,10 +38,10 @@ void produce_static_bytes_fiber(
 {
   static const u8 bytes[] = { 0, 1, 2, 3 };
   context* c = (context*) sim_context;
+  ssc_set_fiber_as_produce_only (h);
   while (true) {
     ssc_delay (h, c->timebase_us);
     ssc_produce_static_output (h, memr16_rv ((void*) bytes, sizeof bytes));
-    ssc_drop_all_input (h);
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -51,6 +51,7 @@ void produce_dynamic_bytes_fiber(
 {
   static const u8 bytes[] = { 0, 1, 2, 3 };
   context* c = (context*) sim_context;
+  ssc_set_fiber_as_produce_only (h);
   while (true) {
     ssc_delay (h, c->timebase_us);
     u8* mem = (u8*) bl_alloc (&c->alloc, sizeof bytes);
@@ -61,7 +62,6 @@ void produce_dynamic_bytes_fiber(
     ssc_produce_dynamic_output (h, memr16_rv ((void*) mem, sizeof bytes));
     /* we have lost "mem" ownership, the chunk may be deallocated by
        through "ssc_sim_dealloc" before arriving here, don't reuse "mem" */
-    ssc_drop_all_input (h);
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -71,10 +71,10 @@ void produce_static_string_fiber(
 {
   static const char str[] = "static string";
   context* c = (context*) sim_context;
+  ssc_set_fiber_as_produce_only (h);
   while (true) {
     ssc_delay (h, c->timebase_us);
     ssc_produce_static_string (h, str, sizeof str);
-    ssc_drop_all_input (h);
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -84,6 +84,7 @@ void produce_dynamic_string_fiber(
 {
   static const char str[] = "dynamic string";
   context* c = (context*) sim_context;
+  ssc_set_fiber_as_produce_only (h);
   while (true) {
     ssc_delay (h, c->timebase_us);
     char* mem = (char*) bl_alloc (&c->alloc, sizeof str);
@@ -94,7 +95,6 @@ void produce_dynamic_string_fiber(
     ssc_produce_dynamic_string (h, mem, sizeof str);
     /* we have lost "mem" ownership, the chunk may be deallocated by
        through "ssc_sim_dealloc" before arriving here, don't reuse "mem" */
-    ssc_drop_all_input (h);
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -248,6 +248,7 @@ void timestamp_fiber (ssc_handle h, void* fiber_context, void* sim_context)
 {
   static const char str[] = "deadline expired";
   context* c = (context*) sim_context;
+  ssc_set_fiber_as_produce_only (h);
   /* don't use bl_get_tstamp() inside fibers, use ssc_get_timestamp() instead.
      The current fiber time can be slightly in the past or in the future */
   tstamp deadline = ssc_get_timestamp (h);
@@ -255,7 +256,6 @@ void timestamp_fiber (ssc_handle h, void* fiber_context, void* sim_context)
     tstamp now = ssc_get_timestamp (h);
     if (tstamp_get_diff (now, deadline) >= 0) {
       ssc_produce_static_string (h, str, sizeof str);
-      ssc_drop_all_input (h);
       deadline = now + bl_usec_to_tstamp (c->timebase_us);
     }
     ssc_delay (h, 100000);
@@ -288,6 +288,7 @@ void sem_wait_fiber(
 {
   static const char str[]  = "semaphore signal received";
   context* c = (context*) sim_context;
+  ssc_set_fiber_as_produce_only (h);
   while (true) {
     bool signaled = ssc_sem_wait (&c->sem, h, 100000);
     if (signaled) {
@@ -295,7 +296,6 @@ void sem_wait_fiber(
     }
     /*fibers that don't read the input queue must release each input message
       reference count manually to allow resource deallocation*/
-    ssc_drop_all_input (h);
   }
 }
 /*----------------------------------------------------------------------------*/
@@ -432,6 +432,7 @@ void ssc_sim_dealloc(
   void const* mem, uword size, ssc_group_id id, void* sim_context
   )
 {
+  #define SSC_EXAMPLE_PRINTT_DEALLOCATED
   /* all memory passed through the "produce_xxx_dynamic" calls will be (if the
      user doesn't leak it) deallocated here at some point. This function has
      to be reentrant (thread-safe) */

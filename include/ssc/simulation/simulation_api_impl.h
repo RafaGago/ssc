@@ -23,6 +23,7 @@ extern memr16 ssc_api_timed_peek_input_head (ssc_handle h, toffset us);
 extern memr16 ssc_api_try_peek_input_head (ssc_handle h);
 extern void ssc_api_drop_input_head (ssc_handle h);
 extern void ssc_api_drop_all_input (ssc_handle h);
+extern bool ssc_api_set_fiber_as_produce_only (ssc_handle h);
 extern void ssc_api_delay (ssc_handle h, toffset us);
 extern tstamp ssc_api_get_timestamp (ssc_handle h);
 extern void ssc_api_produce_static_output (ssc_handle h, memr16 o);
@@ -89,6 +90,11 @@ static inline void ssc_drop_input_head (ssc_handle h)
 static inline void ssc_drop_all_input (ssc_handle h)
 {
   SSC_API_INVOKE_PRIV (drop_input_head) (h);
+}
+/*----------------------------------------------------------------------------*/
+static inline bool ssc_set_fiber_as_produce_only (ssc_handle h)
+{
+  return SSC_API_INVOKE_PRIV (set_fiber_as_produce_only) (h);
 }
 /*----------------------------------------------------------------------------*/
 static inline void ssc_delay (ssc_handle h, toffset us)

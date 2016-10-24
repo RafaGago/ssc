@@ -158,11 +158,23 @@ static inline memr16 ssc_try_peek_input_head (ssc_handle h);
 static inline void ssc_drop_input_head (ssc_handle h);
 /*----------------------------------------------------------------------------*/
 /*ssc_drop_all_input: Drops (consumes) all the data present on the input queue
-  without reading it. Must be used perioducally by fibers that input the ignore
-  queue to decrease each input message reference count and allow resource
-  deallocation */
+  without reading it.*/
 /*----------------------------------------------------------------------------*/
 static inline void ssc_drop_all_input (ssc_handle h);
+/*----------------------------------------------------------------------------*/
+/*ssc_set_fiber_as_produce_only: Tells the simulator that the fiber isn't in-
+  terested in reading data from the input queue.
+
+  This is to be used by fibers that never call "ssc_drop_input_head" or
+  "ssc_drop_all_input". Messages on the input queues aren't copied but reference
+  counted, so having fibers without consuming them would never allow to release
+  the messages.
+
+  This call isn't undoable. After this call all "*peek_input*" functions will
+  return nothing (but still use timers) and all the *_drop_input_* functions
+  will do nothing.*/
+/*----------------------------------------------------------------------------*/
+static inline bool ssc_set_fiber_as_produce_only (ssc_handle h);
 /*----------------------------------------------------------------------------*/
 /* match/match+mask variants of the functions above:
 

@@ -13,18 +13,19 @@ typedef struct ssc_simulator_ftable {
     ssc_handle h, ssc_fiber_cfg const* cfg
     );
   /*FIBER FUNCS---------------------------------------------------------------*/
-  void   (*yield)                  (ssc_handle h);
-  void   (*wake)                   (ssc_handle h, uword_d2 id, uword_d2 count);
-  bool   (*wait)                   (ssc_handle h, uword_d2 id, toffset us);
-  memr16 (*peek_input_head)        (ssc_handle h);
-  memr16 (*timed_peek_input_head)  (ssc_handle h, toffset us);
-  memr16 (*try_peek_input_head)    (ssc_handle h);
-  void   (*drop_input_head)        (ssc_handle h);
-  void   (*drop_all_input)         (ssc_handle h);
-  void   (*delay)                  (ssc_handle h, toffset us);
-  tstamp (*get_timestamp)          (ssc_handle h);
-  void   (*produce_static_output)  (ssc_handle h, memr16 o);
-  void   (*produce_dynamic_output) (ssc_handle h, memr16 o);
+  void   (*yield)                     (ssc_handle h);
+  void   (*wake)                      (ssc_handle h, uword_d2 id, uword_d2 cnt);
+  bool   (*wait)                      (ssc_handle h, uword_d2 id, toffset us);
+  memr16 (*peek_input_head)           (ssc_handle h);
+  memr16 (*timed_peek_input_head)     (ssc_handle h, toffset us);
+  memr16 (*try_peek_input_head)       (ssc_handle h);
+  void   (*drop_input_head)           (ssc_handle h);
+  void   (*drop_all_input)            (ssc_handle h);
+  bool   (*set_fiber_as_produce_only) (ssc_handle h);
+  void   (*delay)                     (ssc_handle h, toffset us);
+  tstamp (*get_timestamp)             (ssc_handle h);
+  void   (*produce_static_output)     (ssc_handle h, memr16 o);
+  void   (*produce_dynamic_output)    (ssc_handle h, memr16 o);
   void   (*produce_error)(
     ssc_handle h, bl_err err, char const* static_string
     );

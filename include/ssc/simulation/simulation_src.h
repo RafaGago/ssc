@@ -31,6 +31,7 @@ void SSC_EXPORT ssc_manual_link_to_simulator(
   bl_assert_always (t->try_peek_input_head);
   bl_assert_always (t->drop_input_head);
   bl_assert_always (t->drop_all_input);
+  bl_assert_always (t->set_fiber_as_produce_only);
   bl_assert_always (t->delay);
   bl_assert_always (t->get_timestamp);
   bl_assert_always (t->produce_static_output);

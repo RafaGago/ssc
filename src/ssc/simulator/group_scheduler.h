@@ -25,6 +25,7 @@ typedef struct gsched_fiber_cfg {
   ssc_fiber_teardown_func teardown;
   void*                   context;
   uword                   max_func_count;
+  u8                      flags;
 }
 gsched_fiber_cfg;
 /*----------------------------------------------------------------------------*/
@@ -52,7 +53,7 @@ typedef struct gsched_fiber_state {
   tstamp                    time;
   uword                     func_count;
   gsched_fiber_state_params params;
-  uword_d2                  id;
+  u8                        id;
 }
 gsched_fiber_state;
 /*----------------------------------------------------------------------------*/
@@ -111,6 +112,7 @@ typedef struct gsched {
   tstamp                look_ahead_offset;
   gsched_mainloop_vars  vars;
   uword                 active_fibers;
+  uword                 produce_only_fibers;
   u8*                   mem_chunk;
 }
 gsched;
@@ -159,6 +161,10 @@ extern memr16 ssc_api_timed_peek_input_head_match_mask(
   );
 /*----------------------------------------------------------------------------*/
 extern void ssc_api_drop_input_head (ssc_handle h);
+/*----------------------------------------------------------------------------*/
+extern void ssc_api_drop_all_input (ssc_handle h);
+/*----------------------------------------------------------------------------*/
+extern bool ssc_api_set_fiber_as_produce_only (ssc_handle h);
 /*----------------------------------------------------------------------------*/
 extern void ssc_api_produce_error(
   ssc_handle h, bl_err err, char const* static_string

@@ -25,22 +25,31 @@ define_flat_deadlines_funcs(
 /*----------------------------------------------------------------------------*/
 /* CONSTANTS */
 /*----------------------------------------------------------------------------*/
-enum {
+enum gsched_queue_ids{
   q_run, /*queue for actually running fibers*/
   q_blocked, /*queue for blocked fibers*/
   q_queue, /*queue for blocked __on queue__ fibers*/
   q_count,
 };
 /*----------------------------------------------------------------------------*/
-enum {
-  f_run, /*state for running or scheduler preempted fibers*/
-  f_wait, /*state for fibers waiting synchronization (wake)*/
-  f_queue, /*state for fibers that consumed its queue through blocking calls*/
-  f_timer_reschedule, /*state for fibers just rescheduled by a timer*/
+enum gsched_fiber_states{
+  fstate_run, /*state for running or scheduler preempted fibers*/
+  fstate_wait, /*state for fibers waiting synchronization (wake)*/
+  fstate_onqueue, /*state for fibers that consumed its queue through blocking calls*/
+  fstate_timer_reschedule, /*state for fibers just rescheduled by a timer*/
 };
 /*----------------------------------------------------------------------------*/
+enum gsched_fiber_flags{
+  fflags_produce_only = 0,
+};
+/*----------------------------------------------------------------------------*/
+static inline bool fiber_is_produce_only (u8 flags)
+{
+  return u8_get_bit (flags, fflags_produce_only);
+}
+/*----------------------------------------------------------------------------*/
 static_assert_ns (arr_elems_member (gsched, sq) == q_count);
-#define gscched_foreach_squeue(gs, vname)\
+#define gsched_foreach_state_queue(gs, vname)\
   for (gsched_fibers* vname = &(gs)->sq[0]; vname < &(gs)->sq[q_count]; ++vname)
 /*----------------------------------------------------------------------------*/
 /* FIBERS */
@@ -74,7 +83,11 @@ static void fiber_function (void* arg)
   node_queue_transfer_tail(
     &f->fiber.parent->finished, &f->fiber.parent->sq[q_run], f
     );
-  gsched_fiber_drop_all_input (&f->fiber);
+  uword produce_only = (uword) fiber_is_produce_only (f->fiber.cfg.flags);
+  if (!produce_only) {
+    gsched_fiber_drop_all_input (&f->fiber);
+  }
+  f->fiber.parent->produce_only_fibers -= produce_only;
   --f->fiber.parent->active_fibers;
   fiber_node_yield_to_sched (f); /*we can't return on libcoro*/
 }
@@ -104,14 +117,21 @@ static inline bl_err fiber_init(
   f->cfg.teardown       = cfg->teardown;
   f->cfg.context        = cfg->fiber_context;
   f->cfg.max_func_count = cfg->max_func_count;
-  f->state.id           = f_run;
+  f->cfg.flags          = 0;
+  f->state.id           = fstate_run;
   f->state.time         = t;
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
 static void gsched_fiber_drop_input_head (gsched_fiber* f)
 {
-  if (unlikely (gsched_fiber_queue_size (&f->queue) <= 0)) {
+  if (unlikely (gsched_fiber_queue_size (&f->queue) <= 0 ||
+      fiber_is_produce_only (f->cfg.flags))
+    ) {
+    bl_assert(
+      !fiber_is_produce_only (f->cfg.flags) &&
+      "produce only fiber is trying to drop"
+      );
     return;
   }
   u8* in_bstream = *gsched_fiber_queue_at_head (&f->queue);
@@ -171,7 +191,7 @@ static void run_wake (gsched* gs, uword_d2 id, uword_d2 count, tstamp now)
     gsched_fibers_node* n = next;
     next                  = tailq_next (next, hook);
 
-    if (n->fiber.state.id != f_wait ||
+    if (n->fiber.state.id != fstate_wait ||
         n->fiber.state.params.wait.id != id ||
         tstamp_get_diff (now, n->fiber.state.params.wait.execute_time) < 0
       ) {
@@ -208,12 +228,12 @@ static void fiber_node_yield_until_fiber_time(
   gsched* gs, gsched_fibers_node* fn
   )
 {
-  bl_assert (fn->fiber.state.id == f_run);
+  bl_assert (fn->fiber.state.id == fstate_run);
   fiber_node_program_timed (gs, fn, fn->fiber.state.time);
   node_queue_transfer_tail (&gs->sq[q_blocked], &gs->sq[q_run], fn);
   fiber_node_yield_to_sched (fn);
-  bl_assert (fn->fiber.state.id == f_timer_reschedule);
-  fn->fiber.state.id = f_run;
+  bl_assert (fn->fiber.state.id == fstate_timer_reschedule);
+  fn->fiber.state.id = fstate_run;
 }
 /*----------------------------------------------------------------------------*/
 static void fiber_node_forward_progress_limit(
@@ -269,7 +289,7 @@ bool ssc_api_wait (ssc_handle h, uword_d2 wait_id, toffset us)
   gsched_fibers_node* fn = (gsched_fibers_node*) h;
   gsched*             gs = fn->fiber.parent;
 
-  fn->fiber.state.id                       = f_wait;
+  fn->fiber.state.id                       = fstate_wait;
   fn->fiber.state.params.wait.execute_time = fn->fiber.state.time;
   fn->fiber.state.params.wait.id           = wait_id;
   node_queue_transfer_tail (&gs->sq[q_blocked], &gs->sq[q_run], fn);
@@ -283,8 +303,8 @@ bool ssc_api_wait (ssc_handle h, uword_d2 wait_id, toffset us)
       );
   }
   fiber_node_yield_to_sched (fn);
-  bool ret           = fn->fiber.state.id != f_timer_reschedule;
-  fn->fiber.state.id = f_run;
+  bool ret           = fn->fiber.state.id != fstate_timer_reschedule;
+  fn->fiber.state.id = fstate_run;
   return ret;
 }
 /*----------------------------------------------------------------------------*/
@@ -316,14 +336,14 @@ memr16 ssc_api_peek_input_head (ssc_handle h)
     fiber_node_forward_progress_limit (gs, fn);
     return ret;
   }
-  fn->fiber.state.id                 = f_queue;
+  fn->fiber.state.id                 = fstate_onqueue;
   fn->fiber.state.params.qread.match = nullptr;
   fn->fiber.state.params.qread.mask  = nullptr;
 
   node_queue_transfer_tail (&gs->sq[q_queue], &gs->sq[q_run], fn);
   fiber_node_yield_to_sched (fn);
   /*will be rescheduled when some data is available*/
-  fn->fiber.state.id = f_run;
+  fn->fiber.state.id = fstate_run;
   ret                = ssc_api_try_peek_input_head (h);
   bl_assert (!memr16_is_null (ret) && "critical bug or design error");
   return ret;
@@ -339,7 +359,7 @@ memr16 ssc_api_timed_peek_input_head (ssc_handle h, toffset us)
     fiber_node_forward_progress_limit (gs, fn);
     return ret;
   }
-  fn->fiber.state.id                 = f_queue;
+  fn->fiber.state.id                 = fstate_onqueue;
   fn->fiber.state.params.qread.match = nullptr;
   fn->fiber.state.params.qread.mask  = nullptr;
 
@@ -348,7 +368,7 @@ memr16 ssc_api_timed_peek_input_head (ssc_handle h, toffset us)
   node_queue_transfer_tail (&gs->sq[q_queue], &gs->sq[q_run], fn);
   fiber_node_yield_to_sched (fn);
   /*will be rescheduled when some data is available or after timing out*/
-  fn->fiber.state.id = f_run;
+  fn->fiber.state.id = fstate_run;
   ret                = ssc_api_try_peek_input_head (h);
   if (!memr16_is_null (ret)) { /*no timeout: self remove from the timed queue*/
     fiber_node_cancel_timed (gs, fn, timeout_deadline);
@@ -523,7 +543,7 @@ static memr16 ssc_api_peek_input_head_match_mask_impl(
   else if (timed && us == 0) {
     return memr16_null();
   }
-  fn->fiber.state.id                      = f_queue;
+  fn->fiber.state.id                      = fstate_onqueue;
   fn->fiber.state.params.qread.match      = memr16_beg_as (match, u8);
   fn->fiber.state.params.qread.match_size = memr16_size (match);
   fn->fiber.state.params.qread.mask       = memr16_beg_as (mask, u8);
@@ -537,7 +557,7 @@ static memr16 ssc_api_peek_input_head_match_mask_impl(
   node_queue_transfer_tail (&gs->sq[q_queue], &gs->sq[q_run], fn);
   fiber_node_yield_to_sched (fn);
   /*will be rescheduled when matching data is available or after timing out*/
-  fn->fiber.state.id = f_run;
+  fn->fiber.state.id = fstate_run;
   ret = ssc_api_try_peek_input_head (h);
   if (!memr16_is_null (ret)) { /*no timeout: self remove from the timed queue*/
     fiber_node_cancel_timed (gs, fn, timeout_deadline);
@@ -675,6 +695,19 @@ tstamp ssc_api_get_timestamp (ssc_handle h)
   return fn->fiber.state.time;
 }
 /*----------------------------------------------------------------------------*/
+bool ssc_api_set_fiber_as_produce_only (ssc_handle h)
+{
+  gsched_fibers_node* fn = (gsched_fibers_node*) h;
+  gsched*            gs  = fn->fiber.parent;
+  if (fiber_is_produce_only (fn->fiber.cfg.flags)) {
+    return false;
+  }
+  gsched_fiber_drop_all_input (&fn->fiber);
+  ++gs->produce_only_fibers;
+  fn->fiber.cfg.flags |= u8_bit (fflags_produce_only);
+  return true;
+}
+/*----------------------------------------------------------------------------*/
 /* GROUP SCHEDULER */
 /*----------------------------------------------------------------------------*/
 bl_err gsched_init(
@@ -695,11 +728,12 @@ bl_err gsched_init(
   gs->look_ahead_offset = bl_usec_to_tstamp(
     fgroup_cfg->max_look_ahead_time_us
     );
-  gs->active_fibers = ssc_fiber_cfgs_size (fiber_cfgs);
-  gs->vars.now      = bl_get_tstamp();
-  gs->vars.has_prog = false;
+  gs->active_fibers       = ssc_fiber_cfgs_size (fiber_cfgs);
+  gs->produce_only_fibers = 0;
+  gs->vars.now            = bl_get_tstamp();
+  gs->vars.has_prog       = false;
 
-  gscched_foreach_squeue (gs, q) {
+  gsched_foreach_state_queue (gs, q) {
     tailq_init (q);
   }
   tailq_init (&gs->finished);
@@ -791,7 +825,7 @@ void gsched_destroy (gsched* gs, alloc_tbl const* alloc)
   tailq_foreach (fn, &gs->finished, hook) {
     fiber_destroy (&fn->fiber);
   }
-  gscched_foreach_squeue (gs, q) {
+  gsched_foreach_state_queue (gs, q) {
     tailq_foreach (fn, q, hook) {
       fiber_destroy (&fn->fiber);
     }
@@ -877,7 +911,7 @@ void gsched_run_teardown (gsched* gs)
   tailq_foreach (fn, &gs->finished, hook) {
     fiber_run_teardown (&fn->fiber);
   }
-  gscched_foreach_squeue (gs, q) {
+  gsched_foreach_state_queue (gs, q) {
     tailq_foreach (fn, q, hook) {
       fiber_run_teardown (&fn->fiber);
     }
@@ -903,6 +937,7 @@ static inline uword gsched_consume_inputs (gsched* gs, tstamp* now)
   uword count = 0;
   static_assert_ns (is_pow2 (arr_elems (input)));
   uword idx;
+  /*consume inputs from the outside*/
   do {
     idx = 0;
     if (gs->vars.unhandled_bstream) {
@@ -914,7 +949,8 @@ static inline uword gsched_consume_inputs (gsched* gs, tstamp* now)
     do {
       input[idx] = ssc_in_q_try_consume (&gs->queue);
       if (input[idx]) {
-        *in_bstream_refcount (input[idx]) = gs->active_fibers;
+        *in_bstream_refcount (input[idx]) =
+          gs->active_fibers - gs->produce_only_fibers;
         ++idx;
       }
       else {
@@ -926,10 +962,14 @@ static inline uword gsched_consume_inputs (gsched* gs, tstamp* now)
     if (idx == 0) {
       break;
     }
-    gscched_foreach_squeue (gs, q) {
+    /*send data to fibers*/
+    gsched_foreach_state_queue (gs, q) { /*iterate all the state queues*/
       gsched_fibers_node* n;
-      tailq_foreach (n, q, hook) {
-       for (uword i = 0; i < idx; ++i) {
+      tailq_foreach (n, q, hook) { /*iterate every fiber in every state queue*/
+        if (unlikely (fiber_is_produce_only (n->fiber.cfg.flags))) {
+          continue;
+        }
+        for (uword i = 0; i < idx; ++i) {
           if (!gsched_fiber_queue_can_insert (&n->fiber.queue)) {
             gsched_fiber_drop_input_head (&n->fiber);
           }
@@ -1087,8 +1127,9 @@ static void gsched_loop (gsched* gs, taskq_id id, bool from_timed_event)
     if (!timed) {
       break;
     }
-    uword id = (timed->value.fn->fiber.state.id == f_queue) ? q_queue : q_blocked;
-    timed->value.fn->fiber.state.id = f_timer_reschedule;
+    uword id = (timed->value.fn->fiber.state.id == fstate_onqueue) ?
+      q_queue : q_blocked;
+    timed->value.fn->fiber.state.id = fstate_timer_reschedule;
     node_queue_transfer_tail (&gs->sq[q_run], &gs->sq[id], timed->value.fn);
     timed->value.fn->fiber.state.time = gs->vars.now;
     gsched_timed_drop_head (&gs->timed);

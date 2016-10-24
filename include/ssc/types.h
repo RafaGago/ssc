@@ -118,7 +118,11 @@ static inline ssc_fiber_cfg ssc_fiber_cfg_rv(
   ret.setup          = setup;
   ret.teardown       = teardown;
   ret.fiber_context  = fiber_context;
+#ifdef DEBUG
+  ret.min_stack_size = 16 * 1024;
+#else
   ret.min_stack_size = 8 * 1024;
+#endif
   ret.min_queue_size = 128;
   ret.max_func_count = 50;
   return ret;
