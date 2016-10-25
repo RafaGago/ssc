@@ -78,6 +78,12 @@ Remember that each fiber that doesn't read the input queue must periodically
 release the input messages manually through the "ssc_drop_all_input" call
 to mark them as used and allow resource deallocation.
 
+Every fiber has its own time (which can be above real time), so if you are
+modifying global data from many fibers time coherency is lost, one fiber
+can see modifications done in "the future" from another fiber. To solve this
+there already is an unexposed parameter "max_look_ahead_time_us" in each
+group scheduler. TODO: move the "max_look_ahead_time_us" to be by fiber.
+
 Current status
 ==============
 
