@@ -64,8 +64,13 @@ Features
 -The cooperative scheduler can do soft context switching, and hence each
  simulation process has its own stack. The size is configurable.
 
--It has lookahead, the scheduler can keep simulating ahead of real-time if
- "it detects" that the given process isn't blocked waiting for further messages.
+-The calls inside a fiber take virtually zero processing time, time just
+ advances when the user calls "ssc_delay". Long blocking processes inside
+ a fiber without calling "ssc_delay" are a bad idea.
+
+-Consequence of the above, the fiber time has lookahead: the scheduler can
+ keep simulating ahead of real-time if  "it detects" that the given process
+ isn't blocked waiting for further messages. How far it goes is configurable.
 
 Known quirks
 ==============
@@ -74,15 +79,17 @@ Select the simulation process/fiber stack size wisely. Otherwise they will
 show as segfaults. This is done on the "ssc_add_fiber" function through the
 cfg parameter.
 
-Remember that each fiber that doesn't read the input queue must periodically
-release the input messages manually through the "ssc_drop_all_input" call
-to mark them as used and allow resource deallocation.
+The group input queue (simulator to simulation) is reference counted, so 
+fibers that don't read/consume the input queue periodically block the 
+input queue resource deallocation. A produce-only fiber should either mark
+itself as produce-only through the "ssc_set_fiber_as_produce_only" call or
+periodically call "ssc_drop_all_input".
 
 Every fiber has its own time (which can be above real time), so if you are
 modifying global data from many fibers time coherency is lost, one fiber
-can see modifications done in "the future" from another fiber. To solve this
-there already is an unexposed parameter "max_look_ahead_time_us" in each
-group scheduler. TODO: move the "max_look_ahead_time_us" to be by fiber.
+can see modifications done in "the future" from another fiber. The
+lookahead feature can be disabled through the "ssc_set_fiber_as_real_time"
+call.
 
 Current status
 ==============
