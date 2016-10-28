@@ -227,15 +227,15 @@ static inline bl_err ssc_set_fiber_as_produce_only (ssc_handle h)
   return ssc_fiber_set_run_cfg (h, &cfg);
 }
 /*----------------------------------------------------------------------------*/
-/*ssc_set_fiber_set_as_real_time: Disallows the task scheduler to run the fiber
-  "to the future", so the calls to ssc_delay always place the fiber in the
+/*ssc_set_fiber_as_real_time: Disallows the task scheduler to run the fiber
+  "to the future", so the calls to "ssc_delay" always place the fiber in the
   schedulers wait queue instead of just advancing the time counter.
 
   Useful to preserve time coherency when some fiber are sharing global
   variables.
   */
 /*----------------------------------------------------------------------------*/
-static inline bl_err ssc_set_fiber_set_as_real_time (ssc_handle h)
+static inline bl_err ssc_set_fiber_as_real_time (ssc_handle h)
 {
   ssc_fiber_run_cfg cfg    = ssc_fiber_get_run_cfg (h);
   cfg.look_ahead_offset_us = 0;
