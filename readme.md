@@ -75,10 +75,6 @@ Features
 Known quirks
 ==============
 
-Select the simulation process/fiber stack size wisely. Otherwise they will
-show as segfaults. This is done on the "ssc_add_fiber" function through the
-cfg parameter.
-
 The group input queue (simulator to simulation) is reference counted, so 
 fibers that don't read/consume the input queue periodically block the 
 input queue resource deallocation. A produce-only fiber should either mark
@@ -91,10 +87,15 @@ can see modifications done in "the future" from another fiber. The
 lookahead feature can be disabled through the "ssc_set_fiber_as_real_time"
 call.
 
+Select the simulation process/fiber stack size wisely. Otherwise stack 
+overflows will show themselves as segfaults or weird behavior. This is done 
+on the "ssc_add_fiber" function through the cfg parameter. if the program is
+behaving in a strange way this is the first thing to suspect of.
+
 Current status
 ==============
 
-Very basic testing done.
+Basic testing done. Lots of tests to be written.
 
 Build (Linux)
 =============
