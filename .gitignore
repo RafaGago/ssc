@@ -6,3 +6,7 @@ build/premake/premake5
 dependencies/cmocka
 eclipse/.metadata/*
 eclipse/RemoteSystemsTempFiles/*
+cscope.out
+tags
+.tags_sorted_by_file
+.tags
