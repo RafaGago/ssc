@@ -111,13 +111,13 @@ int main (int argc, char const* argv[])
   uword timebase_us = 10000000;
   bl_err err        = ssc_create (&p.sim, "", &timebase_us);
   if (err) {
-    fprintf (stderr, "unable to create ssc_lua: %s\n", bl_err_to_str (err));
+    fprintf (stderr, "unable to create ssc: %s\n", bl_err_to_str (err));
     return (int) err;
   }
   p.startup = bl_get_tstamp();
   err       = ssc_run_setup (p.sim);
   if (err) {
-    fprintf (stderr, "unable to run ssc_lua setup: %s\n", bl_err_to_str (err));
+    fprintf (stderr, "unable to run ssc setup: %s\n", bl_err_to_str (err));
     goto destroy;
   }
   printf(
