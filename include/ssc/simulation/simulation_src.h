@@ -5,7 +5,7 @@
   This file defines some helper functions that are simple compositions or
   frequent usage patterns of the main api functions.
 
-  It also defines a the function table for the simulator if the simulation is
+  It also defines the function table for the simulator if the simulation is
   compiled as a shared library.
 
   The header and the functions are small and simple enough that in my judgement
@@ -31,7 +31,6 @@ void SSC_EXPORT ssc_manual_link_to_simulator(
   bl_assert_always (t->try_peek_input_head);
   bl_assert_always (t->drop_input_head);
   bl_assert_always (t->drop_all_input);
-  bl_assert_always (t->set_fiber_as_produce_only);
   bl_assert_always (t->delay);
   bl_assert_always (t->get_timestamp);
   bl_assert_always (t->produce_static_output);
@@ -41,6 +40,8 @@ void SSC_EXPORT ssc_manual_link_to_simulator(
   bl_assert_always (t->produce_dynamic_string);
   bl_assert_always (t->consume_input_head_match_mask);
   bl_assert_always (t->timed_consume_input_head_match_mask);
+  bl_assert_always (t->fiber_get_run_cfg);
+  bl_assert_always (t->fiber_set_run_cfg);
   ssc_sim_tbl = *t;
 }
 #endif /*SSC_SHAREDLIB*/

@@ -24,8 +24,7 @@ typedef struct gsched_fiber_cfg {
   ssc_fiber_func          fiber;
   ssc_fiber_teardown_func teardown;
   void*                   context;
-  uword                   max_func_count;
-  u8                      flags;
+  ssc_fiber_run_cfg       run_cfg;
 }
 gsched_fiber_cfg;
 /*----------------------------------------------------------------------------*/
@@ -164,8 +163,6 @@ extern void ssc_api_drop_input_head (ssc_handle h);
 /*----------------------------------------------------------------------------*/
 extern void ssc_api_drop_all_input (ssc_handle h);
 /*----------------------------------------------------------------------------*/
-extern bool ssc_api_set_fiber_as_produce_only (ssc_handle h);
-/*----------------------------------------------------------------------------*/
 extern void ssc_api_produce_error(
   ssc_handle h, bl_err err, char const* static_string
   );
@@ -189,5 +186,11 @@ extern tstamp ssc_api_get_timestamp (ssc_handle h);
 extern bool ssc_api_pattern_match (memr16 in, memr16 match);
 /*----------------------------------------------------------------------------*/
 extern bool ssc_api_pattern_match_mask (memr16 in, memr16 match, memr16 mask);
+/*----------------------------------------------------------------------------*/
+extern ssc_fiber_run_cfg ssc_api_fiber_get_run_cfg (ssc_handle h);
+/*----------------------------------------------------------------------------*/
+extern bl_err ssc_api_fiber_set_run_cfg(
+  ssc_handle h, ssc_fiber_run_cfg const* c
+  );
 /*----------------------------------------------------------------------------*/
 #endif /* __SSC_SCHED_H__ */

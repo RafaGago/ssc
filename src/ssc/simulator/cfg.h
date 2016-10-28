@@ -14,7 +14,6 @@ ssc_cfg;
 /*----------------------------------------------------------------------------*/
 typedef struct ssc_fiber_group_cfg {
   uword min_queue_size;
-  uword max_look_ahead_time_us;
 }
 ssc_fiber_group_cfg;
 /*----------------------------------------------------------------------------*/

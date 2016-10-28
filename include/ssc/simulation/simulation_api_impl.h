@@ -23,7 +23,6 @@ extern memr16 ssc_api_timed_peek_input_head (ssc_handle h, toffset us);
 extern memr16 ssc_api_try_peek_input_head (ssc_handle h);
 extern void ssc_api_drop_input_head (ssc_handle h);
 extern void ssc_api_drop_all_input (ssc_handle h);
-extern bool ssc_api_set_fiber_as_produce_only (ssc_handle h);
 extern void ssc_api_delay (ssc_handle h, toffset us);
 extern tstamp ssc_api_get_timestamp (ssc_handle h);
 extern void ssc_api_produce_static_output (ssc_handle h, memr16 o);
@@ -42,6 +41,10 @@ extern memr16 ssc_api_peek_input_head_match_mask(
   );
 extern memr16 ssc_api_timed_peek_input_head_match_mask(
   ssc_handle h, memr16 match, memr16 mask, toffset us
+  );
+extern ssc_fiber_run_cfg ssc_api_fiber_get_run_cfg (ssc_handle h);
+extern bl_err ssc_api_fiber_set_run_cfg(
+  ssc_handle h, ssc_fiber_run_cfg const* c
   );
 /*----------------------------------------------------------------------------*/
 #endif /*SSC_SHAREDLIB*/
@@ -90,11 +93,6 @@ static inline void ssc_drop_input_head (ssc_handle h)
 static inline void ssc_drop_all_input (ssc_handle h)
 {
   SSC_API_INVOKE_PRIV (drop_input_head) (h);
-}
-/*----------------------------------------------------------------------------*/
-static inline bool ssc_set_fiber_as_produce_only (ssc_handle h)
-{
-  return SSC_API_INVOKE_PRIV (set_fiber_as_produce_only) (h);
 }
 /*----------------------------------------------------------------------------*/
 static inline void ssc_delay (ssc_handle h, toffset us)
@@ -156,6 +154,18 @@ static inline memr16 ssc_timed_peek_input_head_match_mask(
   return SSC_API_INVOKE_PRIV (timed_peek_input_head_match_mask)(
     h, match, mask, us
     );
+}
+/*----------------------------------------------------------------------------*/
+static inline ssc_fiber_run_cfg ssc_fiber_get_run_cfg (ssc_handle h)
+{
+  return SSC_API_INVOKE_PRIV (fiber_get_run_cfg) (h);
+}
+/*----------------------------------------------------------------------------*/
+static inline bl_err ssc_fiber_set_run_cfg(
+  ssc_handle h, ssc_fiber_run_cfg const* c
+  )
+{
+  return SSC_API_INVOKE_PRIV (fiber_set_run_cfg) (h, c);
 }
 /*----------------------------------------------------------------------------*/
 #endif /* __SSC_SIMULATION_API_IMPL_H__ */

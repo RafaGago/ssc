@@ -50,9 +50,10 @@ bl_err ssc_api_add_fiber (ssc_handle h, ssc_fiber_cfg const* cfg)
     return sim->err;
   }
   ssc_fiber_cfgs* gcfg = nullptr;
-  uword fg_cfgs_size     = gsched_cfgs_size (&sim->fg_cfgs);
+  uword fg_cfgs_size   = gsched_cfgs_size (&sim->fg_cfgs);
 
   if (cfg->id == fg_cfgs_size) {
+    /*fiber added to new fiber group*/
     sim->err = gsched_cfgs_grow (&sim->fg_cfgs, 1, &sim->alloc);
     if (sim->err) {
       log_error ("fiber group cfgs resize error:\n", sim->err);
@@ -62,6 +63,7 @@ bl_err ssc_api_add_fiber (ssc_handle h, ssc_fiber_cfg const* cfg)
     ssc_fiber_cfgs_init (gcfg, 0, &sim->alloc);
   }
   else if (cfg->id == fg_cfgs_size - 1) {
+    /*fiber added to current fiber group*/
     gcfg = gsched_cfgs_at (&sim->fg_cfgs, cfg->id);
   }
   else
@@ -108,6 +110,8 @@ static void ssc_run_manual_link_to_simulator (ssc* d)
   t.peek_input_head_match_mask       = ssc_api_peek_input_head_match_mask;
   t.timed_peek_input_head_match_mask =
     ssc_api_timed_peek_input_head_match_mask;
+  t.fiber_get_run_cfg                = ssc_api_fiber_get_run_cfg;
+  t.fiber_set_run_cfg                = ssc_api_fiber_set_run_cfg;
   d->lib.manual_link (&t);
 #endif
 }
@@ -233,7 +237,7 @@ SSC_SIM_EXPORT bl_err ssc_create(
       log_error ("error allocating fiber group:%u\n", err);
       goto destroy_taskq;
     }
-    gsched* g                 = gscheds_last (&sim->groups);
+    gsched* g               = gscheds_last (&sim->groups);
     ssc_fiber_cfgs* gf_cfgs = gsched_cfgs_at (&sim->fg_cfgs, i);
     err = gsched_init(
       g, i, &sim->global, &group_cfg, gf_cfgs, &sim->alloc

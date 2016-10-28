@@ -5,6 +5,7 @@
 #include <bl/base/assert.h>
 #include <bl/base/platform.h>
 #include <bl/base/integer.h>
+#include <bl/base/integer_manipulation.h>
 #include <bl/base/time.h>
 #include <bl/base/memory_range.h>
 /*----------------------------------------------------------------------------*/
@@ -82,6 +83,45 @@ static inline memr16 ssc_output_read_as_bytes (ssc_output_data const* d)
 /*----------------------------------------------------------------------------*/
 typedef void* ssc_handle;
 /*----------------------------------------------------------------------------*/
+enum ssc_run_flags_e{
+  ssc_fiber_produce_only  = 0,
+  ssc_fiber_flags_biggest = ssc_fiber_produce_only /*internal use*/
+};
+/*----------------------------------------------------------------------------*/
+static inline bool fiber_is_produce_only (u8 run_flags)
+{
+  return u8_get_bit (run_flags, ssc_fiber_produce_only);
+}
+/*----------------------------------------------------------------------------*/
+/*this call is not reversible, a produce only fiber can't be reverted to
+ produce/consume */
+static inline u8 fiber_set_produce_only (u8 run_flags)
+{
+  return run_flags | u8_bit (ssc_fiber_produce_only);
+}
+/*----------------------------------------------------------------------------*/
+typedef struct ssc_fiber_run_cfg {
+  uword max_func_count; /*max recursion count in a time-slice*/
+  uword look_ahead_offset_us; /* maximum time that a time-slice can advance
+                                 even when the fiber processing isn't depending
+                                 on input data. A value of 0 makes every
+                                 ssc_delay call to move the fiber to the wait
+                                 state. */
+  u8    run_flags;
+}
+ssc_fiber_run_cfg;
+/*----------------------------------------------------------------------------*/
+static inline ssc_fiber_run_cfg ssc_fiber_run_cfg_rv(
+  uword max_func_count, uword look_ahead_offset_us, uword run_flags
+  )
+{
+  ssc_fiber_run_cfg c;
+  c.max_func_count       = max_func_count;
+  c.look_ahead_offset_us = look_ahead_offset_us;
+  c.run_flags            = run_flags;
+  return c;
+}
+/*----------------------------------------------------------------------------*/
 typedef bl_err (*ssc_fiber_setup_func)(
   void* fiber_context, void* sim_context
   );
@@ -100,7 +140,7 @@ typedef struct ssc_fiber_cfg {
   void*                   fiber_context;
   uword                   min_stack_size; /*bytes*/
   uword                   min_queue_size; /*messages*/
-  uword                   max_func_count; /*max recursion on a slice*/
+  ssc_fiber_run_cfg       run_cfg;
 }
 ssc_fiber_cfg;
 /*----------------------------------------------------------------------------*/
@@ -124,7 +164,7 @@ static inline ssc_fiber_cfg ssc_fiber_cfg_rv(
   ret.min_stack_size = 8 * 1024;
 #endif
   ret.min_queue_size = 128;
-  ret.max_func_count = 50;
+  ret.run_cfg        = ssc_fiber_run_cfg_rv (50, 40000, 0);
   return ret;
 }
 /*----------------------------------------------------------------------------*/

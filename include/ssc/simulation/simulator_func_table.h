@@ -21,7 +21,6 @@ typedef struct ssc_simulator_ftable {
   memr16 (*try_peek_input_head)       (ssc_handle h);
   void   (*drop_input_head)           (ssc_handle h);
   void   (*drop_all_input)            (ssc_handle h);
-  bool   (*set_fiber_as_produce_only) (ssc_handle h);
   void   (*delay)                     (ssc_handle h, toffset us);
   tstamp (*get_timestamp)             (ssc_handle h);
   void   (*produce_static_output)     (ssc_handle h, memr16 o);
@@ -41,6 +40,8 @@ typedef struct ssc_simulator_ftable {
   memr16 (*timed_consume_input_head_match_mask)(
     ssc_handle h, memr16 match, memr16 mask, toffset us
     );
+  ssc_fiber_run_cfg (*fiber_get_run_cfg) (ssc_handle h);
+  bl_err (*fiber_set_run_cfg) (ssc_handle h, ssc_fiber_run_cfg const* c);
   /*--------------------------------------------------------------------------*/
 }
 ssc_simulator_ftable;

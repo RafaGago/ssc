@@ -162,20 +162,6 @@ static inline void ssc_drop_input_head (ssc_handle h);
 /*----------------------------------------------------------------------------*/
 static inline void ssc_drop_all_input (ssc_handle h);
 /*----------------------------------------------------------------------------*/
-/*ssc_set_fiber_as_produce_only: Tells the simulator that the fiber isn't in-
-  terested in reading data from the input queue.
-
-  This is to be used by fibers that never call "ssc_drop_input_head" or
-  "ssc_drop_all_input". Messages on the input queues aren't copied but reference
-  counted, so having fibers without consuming them would never allow to release
-  the messages.
-
-  This call isn't undoable. After this call all "*peek_input*" functions will
-  return nothing (but still use timers) and all the *_drop_input_* functions
-  will do nothing.*/
-/*----------------------------------------------------------------------------*/
-static inline bool ssc_set_fiber_as_produce_only (ssc_handle h);
-/*----------------------------------------------------------------------------*/
 /* match/match+mask variants of the functions above:
 
   The functions below consume the input queue head until a "match" is found.
@@ -210,6 +196,50 @@ static inline memr16 ssc_timed_peek_input_head_match(
   )
 {
   return ssc_timed_peek_input_head_match_mask (h, match, memr16_null(), us);
+}
+/*----------------------------------------------------------------------------*/
+/*ssc_fiber_get_run_cfg: Gets the fiber runtime parameters*/
+/*----------------------------------------------------------------------------*/
+static inline ssc_fiber_run_cfg ssc_fiber_get_run_cfg (ssc_handle h);
+/*----------------------------------------------------------------------------*/
+/*ssc_fiber_set_run_cfg: Sets the current fiber runtime parameters*/
+/*----------------------------------------------------------------------------*/
+static inline bl_err ssc_fiber_set_run_cfg(
+  ssc_handle h, ssc_fiber_run_cfg const* c
+  );
+/*----------------------------------------------------------------------------*/
+/*ssc_set_fiber_as_produce_only: Tells the simulator that the fiber isn't in-
+  terested in reading data from the input queue.
+
+  This is to be used by fibers that never call "ssc_drop_input_head" or
+  "ssc_drop_all_input". Messages on the input queues aren't copied but reference
+  counted, so having fibers without consuming them would never allow to release
+  the messages.
+
+  This call isn't undoable. After this call all "*peek_input*" functions will
+  return nothing (but still use timers) and all the *_drop_input_* functions
+  will do nothing.*/
+/*----------------------------------------------------------------------------*/
+static inline bl_err ssc_set_fiber_as_produce_only (ssc_handle h)
+{
+  ssc_fiber_run_cfg cfg = ssc_fiber_get_run_cfg (h);
+  cfg.run_flags         = fiber_set_produce_only (cfg.run_flags);
+  return ssc_fiber_set_run_cfg (h, &cfg);
+}
+/*----------------------------------------------------------------------------*/
+/*ssc_set_fiber_set_as_real_time: Disallows the task scheduler to run the fiber
+  "to the future", so the calls to ssc_delay always place the fiber in the
+  schedulers wait queue instead of just advancing the time counter.
+
+  Useful to preserve time coherency when some fiber are sharing global
+  variables.
+  */
+/*----------------------------------------------------------------------------*/
+static inline bl_err ssc_set_fiber_set_as_real_time (ssc_handle h)
+{
+  ssc_fiber_run_cfg cfg    = ssc_fiber_get_run_cfg (h);
+  cfg.look_ahead_offset_us = 0;
+  return ssc_fiber_set_run_cfg (h, &cfg);
 }
 /*----------------------------------------------------------------------------*/
 /* ssc_sem: Simple semaphore built with "ssc_wait" and "ssc_wake". */

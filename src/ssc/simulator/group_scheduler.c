@@ -39,15 +39,6 @@ enum gsched_fiber_states{
   fstate_timer_reschedule, /*state for fibers just rescheduled by a timer*/
 };
 /*----------------------------------------------------------------------------*/
-enum gsched_fiber_flags{
-  fflags_produce_only = 0,
-};
-/*----------------------------------------------------------------------------*/
-static inline bool fiber_is_produce_only (u8 flags)
-{
-  return u8_get_bit (flags, fflags_produce_only);
-}
-/*----------------------------------------------------------------------------*/
 static_assert_ns (arr_elems_member (gsched, sq) == q_count);
 #define gsched_foreach_state_queue(gs, vname)\
   for (gsched_fibers* vname = &(gs)->sq[0]; vname < &(gs)->sq[q_count]; ++vname)
@@ -83,7 +74,9 @@ static void fiber_function (void* arg)
   node_queue_transfer_tail(
     &f->fiber.parent->finished, &f->fiber.parent->sq[q_run], f
     );
-  uword produce_only = (uword) fiber_is_produce_only (f->fiber.cfg.flags);
+  uword produce_only = (uword) fiber_is_produce_only(
+    f->fiber.cfg.run_cfg.run_flags
+    );
   if (!produce_only) {
     gsched_fiber_drop_all_input (&f->fiber);
   }
@@ -93,11 +86,11 @@ static void fiber_function (void* arg)
 }
 /*----------------------------------------------------------------------------*/
 static inline bl_err fiber_init(
-  gsched_fibers_node*     fn,
-  tstamp                  t,
-  gsched*                 parent,
-  u8**                    queue_mem,
-  ssc_fiber_cfg const*    cfg
+  gsched_fibers_node*  fn,
+  tstamp               t,
+  gsched*              parent,
+  u8**                 queue_mem,
+  ssc_fiber_cfg const* cfg
   )
 {
   gsched_fiber* f = &fn->fiber;
@@ -113,23 +106,22 @@ static inline bl_err fiber_init(
     );
   gsched_fiber_queue_init_extern (&f->queue, queue_mem, cfg->min_queue_size);
 
-  f->cfg.fiber          = cfg->fiber;
-  f->cfg.teardown       = cfg->teardown;
-  f->cfg.context        = cfg->fiber_context;
-  f->cfg.max_func_count = cfg->max_func_count;
-  f->cfg.flags          = 0;
-  f->state.id           = fstate_run;
-  f->state.time         = t;
+  f->cfg.fiber    = cfg->fiber;
+  f->cfg.teardown = cfg->teardown;
+  f->cfg.context  = cfg->fiber_context;
+  f->cfg.run_cfg  = cfg->run_cfg;
+  f->state.id     = fstate_run;
+  f->state.time   = t;
   return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
 static void gsched_fiber_drop_input_head (gsched_fiber* f)
 {
   if (unlikely (gsched_fiber_queue_size (&f->queue) <= 0 ||
-      fiber_is_produce_only (f->cfg.flags))
+      fiber_is_produce_only (f->cfg.run_cfg.run_flags))
     ) {
     bl_assert(
-      !fiber_is_produce_only (f->cfg.flags) &&
+      !fiber_is_produce_only (f->cfg.run_cfg.run_flags) &&
       "produce only fiber is trying to drop"
       );
     return;
@@ -240,15 +232,13 @@ static void fiber_node_forward_progress_limit(
   gsched* gs, gsched_fibers_node* fn
   )
 {
-  tstampdiff diff = tstamp_get_diff(
-    fn->fiber.state.time, gs->vars.now + gs->look_ahead_offset
+  toffset max_offset = bl_usec_to_tstamp(
+    fn->fiber.cfg.run_cfg.look_ahead_offset_us
     );
-  if (tstamp_get_diff(
-    fn->fiber.state.time, gs->vars.now + gs->look_ahead_offset) >= 0
-    ) {
+  if (tstamp_get_diff (fn->fiber.state.time, gs->vars.now + max_offset) >= 0) {
     fiber_node_yield_until_fiber_time (fn->fiber.parent, fn);
   }
-  else if (fn->fiber.state.func_count > fn->fiber.cfg.max_func_count) {
+  else if (fn->fiber.state.func_count > fn->fiber.cfg.run_cfg.max_func_count) {
     fiber_node_yield_to_sched (fn);
   }
   ++fn->fiber.state.func_count;
@@ -695,17 +685,44 @@ tstamp ssc_api_get_timestamp (ssc_handle h)
   return fn->fiber.state.time;
 }
 /*----------------------------------------------------------------------------*/
-bool ssc_api_set_fiber_as_produce_only (ssc_handle h)
+ssc_fiber_run_cfg ssc_api_fiber_get_run_cfg (ssc_handle h)
+{
+  gsched_fibers_node* fn = (gsched_fibers_node*) h;
+  return fn->fiber.cfg.run_cfg;
+}
+/*----------------------------------------------------------------------------*/
+static inline void set_fiber_as_produce_only (gsched_fibers_node* fn)
+{
+
+  fn->fiber.cfg.run_cfg.run_flags |= u8_bit (ssc_fiber_produce_only);
+}
+/*----------------------------------------------------------------------------*/
+static bool fiber_run_cfg_is_valid (ssc_fiber_run_cfg const* cfg)
+{
+  return cfg->max_func_count != 0 &&
+         cfg->run_flags <= ((1 << ssc_fiber_flags_biggest) - 1);
+}
+/*----------------------------------------------------------------------------*/
+bl_err ssc_api_fiber_set_run_cfg(
+  ssc_handle h, ssc_fiber_run_cfg const* c
+  )
 {
   gsched_fibers_node* fn = (gsched_fibers_node*) h;
   gsched*            gs  = fn->fiber.parent;
-  if (fiber_is_produce_only (fn->fiber.cfg.flags)) {
-    return false;
+  bl_assert (c);
+  /*produce only can't be disabled*/
+  u8 oldflags = fn->fiber.cfg.run_cfg.run_flags;
+  if (!fiber_run_cfg_is_valid (c) ||
+    (fiber_is_produce_only (oldflags) && !fiber_is_produce_only (c->run_flags))
+    ) {
+    return bl_invalid;
   }
-  gsched_fiber_drop_all_input (&fn->fiber);
-  ++gs->produce_only_fibers;
-  fn->fiber.cfg.flags |= u8_bit (fflags_produce_only);
-  return true;
+  fn->fiber.cfg.run_cfg = *c;
+  if (fiber_is_produce_only (c->run_flags)) {
+    gsched_fiber_drop_all_input (&fn->fiber);
+    ++gs->produce_only_fibers;
+  }
+  return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
 /* GROUP SCHEDULER */
@@ -722,12 +739,9 @@ bl_err gsched_init(
   bl_assert (gs && global && fgroup_cfg && fiber_cfgs && alloc);
   memset (gs, 0, sizeof *gs);
 
-  gs->gid               = id;
-  gs->global            = global;
-  gs->fiber_cfgs        = fiber_cfgs;
-  gs->look_ahead_offset = bl_usec_to_tstamp(
-    fgroup_cfg->max_look_ahead_time_us
-    );
+  gs->gid                 = id;
+  gs->global              = global;
+  gs->fiber_cfgs          = fiber_cfgs;
   gs->active_fibers       = ssc_fiber_cfgs_size (fiber_cfgs);
   gs->produce_only_fibers = 0;
   gs->vars.now            = bl_get_tstamp();
@@ -758,7 +772,7 @@ bl_err gsched_init(
   /*fiber initialization*/
   for (uword i = 0; i < ssc_fiber_cfgs_size (fiber_cfgs); ++i) {
 
-    ssc_fiber_cfg*    cfg         = ssc_fiber_cfgs_at (fiber_cfgs, i);
+    ssc_fiber_cfg*      cfg         = ssc_fiber_cfgs_at (fiber_cfgs, i);
     gsched_fibers_node* next        = (gsched_fibers_node*) (addr);
     u8**                queue_elems = (u8**) (((u8*) next) + sizeof *next);
 
@@ -923,7 +937,7 @@ bl_err gsched_fiber_cfg_validate_correct (ssc_fiber_cfg* cfg)
   bl_assert (cfg);
   if (cfg->min_stack_size == 0 ||
       cfg->min_queue_size == 0 ||
-      cfg->max_func_count == 0
+      !fiber_run_cfg_is_valid (&cfg->run_cfg)
     ) {
     return bl_invalid;
   }
@@ -966,7 +980,9 @@ static inline uword gsched_consume_inputs (gsched* gs, tstamp* now)
     gsched_foreach_state_queue (gs, q) { /*iterate all the state queues*/
       gsched_fibers_node* n;
       tailq_foreach (n, q, hook) { /*iterate every fiber in every state queue*/
-        if (unlikely (fiber_is_produce_only (n->fiber.cfg.flags))) {
+        if (unlikely(
+          fiber_is_produce_only (n->fiber.cfg.run_cfg.run_flags)
+          )) {
           continue;
         }
         for (uword i = 0; i < idx; ++i) {
