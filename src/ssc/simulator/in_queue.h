@@ -4,7 +4,7 @@
 #include <bl/base/platform.h>
 #include <bl/base/integer.h>
 #include <bl/base/utility.h>
-#include <bl/nonblock/mpmc_b.h>
+#include <bl/nonblock/mpmc_bt.h>
 
 /*---------------------------------------------------------------------------*/
 enum ssc_in_q_sig_e {
@@ -15,8 +15,8 @@ enum ssc_in_q_sig_e {
 typedef uword ssc_in_q_sig;
 /*----------------------------------------------------------------------------*/
 typedef struct ssc_in_q {
-  mpmc_b      queue;
-  mpmc_b_info last_inf;
+  mpmc_bt       queue;
+  mpmc_b_ticket last_ticket;
 }
 ssc_in_q;
 /*----------------------------------------------------------------------------*/

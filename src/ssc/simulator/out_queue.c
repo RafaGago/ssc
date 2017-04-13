@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include <bl/base/assert.h>
+#include <bl/base/alignment.h>
 #include <bl/base/integer.h>
 #include <bl/base/integer_manipulation.h>
 #include <bl/base/integer_math.h>
@@ -30,11 +31,17 @@ bl_err ssc_out_q_init (ssc_out_q* q, uword size, ssc_global const* global)
 {
   bl_assert (q && global);
   size       = round_next_pow2_u (size);
-  bl_err err = mpmc_b_init (&q->queue, global->alloc, size, ssc_output_data);
+  bl_err err = mpmc_bt_init(
+    &q->queue,
+    global->alloc,
+    size,
+    sizeof (ssc_output_data),
+    bl_alignof (ssc_output_data)
+    );
   if (err) { return err; }
   err = out_q_sorted_init (&q->tsorted, size * 4, global->alloc);
   if (err) {
-    mpmc_b_destroy (&q->queue, global->alloc);
+    mpmc_bt_destroy (&q->queue, global->alloc);
   }
   q->global = global;
   return err;
@@ -44,23 +51,22 @@ void ssc_out_q_destroy (ssc_out_q* q)
 {
   bl_assert (q);
   ssc_output_data dat;
-  mpmc_b_info       inf;
-  uword             v;
+  uword           v;
 
   while (ssc_out_q_consume (q, &v, &dat, 1, 0) == bl_ok) {
     ssc_out_memory_dealloc(
       q->global->sim_dealloc, q->global->sim_context, &dat
       );
   }
-  mpmc_b_destroy (&q->queue, q->global->alloc);
+  mpmc_bt_destroy (&q->queue, q->global->alloc);
   out_q_sorted_destroy (&q->tsorted, q->global->alloc);
 }
 /*----------------------------------------------------------------------------*/
 bl_err ssc_out_q_produce (ssc_out_q* q, ssc_output_data* d)
 {
   bl_assert (q && d);
-  mpmc_b_info inf;
-  return mpmc_b_produce_single_p (&q->queue, &inf, d);
+  mpmc_b_ticket t;
+  return mpmc_bt_produce_sp (&q->queue, &t, d);
 }
 /*----------------------------------------------------------------------------*/
 static inline void copy_to_output_data(
@@ -112,10 +118,10 @@ static bool ssc_out_q_transfer (ssc_out_q* q)
 {
   bl_err err = bl_ok;
   while (!err && out_q_sorted_can_insert (&q->tsorted)) {
-    mpmc_b_info        inf;
+    mpmc_b_ticket    t;
     ssc_output_data  d;
     out_q_sorted_entry e;
-    err = mpmc_b_consume_single_c (&q->queue, &inf, &d);
+    err = mpmc_bt_consume_sc (&q->queue, &t, &d);
     if (err) { break; }
     copy_to_sorted_data (&e, &d);
     out_q_sorted_insert (&q->tsorted, &e);
@@ -153,10 +159,10 @@ try_again:
   case 1:
     return bl_ok; /*fast-path*/
   case 2:{ /*edge case*/
-    mpmc_b_info        inf;
+    mpmc_b_ticket    t;
     ssc_output_data  d;
     out_q_sorted_entry e;
-    bl_err err = mpmc_b_consume_single_c (&q->queue, &inf, &d);
+    bl_err err = mpmc_bt_consume_sc (&q->queue, &t, &d);
     if (!err) {
       out_q_sorted_entry const* drop = out_q_sorted_get_head (&q->tsorted);
       bl_assert (drop);

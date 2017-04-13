@@ -6,7 +6,7 @@
 #include <bl/base/time.h>
 #include <bl/base/flat_deadlines.h>
 
-#include <bl/nonblock/mpmc_b.h>
+#include <bl/nonblock/mpmc_bt.h>
 
 #include <ssc/types.h>
 #include <ssc/simulator/simulation.h>
@@ -23,7 +23,7 @@ out_q_sorted_value;
 define_flat_deadlines_types (out_q_sorted, out_q_sorted_value)
 /*----------------------------------------------------------------------------*/
 typedef struct ssc_out_q {
-  mpmc_b                   queue;
+  mpmc_bt                  queue;
   out_q_sorted             tsorted;
   struct ssc_global const* global;
 }
