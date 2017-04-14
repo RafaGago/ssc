@@ -9,59 +9,58 @@
 #include <bl/base/error.h>
 
 typedef struct ssc ssc;
-/*============================================================================*/
-/* Startup / Shutdown
-/*============================================================================*/
-/*----------------------------------------------------------------------------*/
-/*ssc_create: Creates a new simulator instance-
+/*==============================================================================
+ Startup / Shutdown
+==============================================================================*/
+/*------------------------------------------------------------------------------
+ssc_create: Creates a new simulator instance-
 
     "simlib_path" can be a nullptr if simulator and simulation are compiled
     together.
 
     "simlib_passed_data" is a free pointer which will be received on the simu-
-    lation initialization functions.*/
-/*----------------------------------------------------------------------------*/
+    lation initialization functions.
+------------------------------------------------------------------------------*/
 extern SSC_SIM_EXPORT
   bl_err ssc_create(
     ssc**       instance_out,
     char const* simlib_path,
     void*       simlib_passed_data
     );
-/*----------------------------------------------------------------------------*/
-/*ssc_destroy: Destroys a simulator instance. You may need to call
+/*------------------------------------------------------------------------------
+  ssc_destroy: Destroys a simulator instance. You may need to call
     "ssc_run_teardown(...)"  before.
-/*----------------------------------------------------------------------------*/
+------------------------------------------------------------------------------*/
 extern SSC_SIM_EXPORT
   bl_err ssc_destroy (ssc* sim);
-/*============================================================================*/
-/* Simulator thread functions. To be run on a worker thread.
-/*============================================================================*/
-/*----------------------------------------------------------------------------*/
-/*ssc_run_setup: Runs the simulation setup.
-/*----------------------------------------------------------------------------*/
+/*==============================================================================
+  Simulator thread functions. To be run on a worker thread.
+==============================================================================*/
+/*------------------------------------------------------------------------------
+  ssc_run_setup: Runs the simulation setup.
+------------------------------------------------------------------------------*/
 extern SSC_SIM_EXPORT
   bl_err ssc_run_setup (ssc* sim);
-/*----------------------------------------------------------------------------*/
-/*ssc_run_setup: Runs the simulation cleanup.
-/*----------------------------------------------------------------------------*/
+/*------------------------------------------------------------------------------
+  ssc_run_setup: Runs the simulation cleanup.
+------------------------------------------------------------------------------*/
 extern SSC_SIM_EXPORT
   bl_err ssc_run_teardown (ssc* sim);
-/*----------------------------------------------------------------------------*/
-/*ssc_run_some: Executes some iterations of the simulation or blocks until the
-  timeout if there is nothing to do.*/
-/*----------------------------------------------------------------------------*/
+/*------------------------------------------------------------------------------
+  ssc_run_some: Executes some iterations of the simulation or blocks until the
+  timeout if there is nothing to do.
+------------------------------------------------------------------------------*/
 extern SSC_SIM_EXPORT
   bl_err ssc_run_some (ssc* sim, u32 usec_timeout);
-/*----------------------------------------------------------------------------*/
-/*ssc_run_some: Executes some iterations of the simulation. It returns
-  immediately if there is nothing to do.*/
-/*----------------------------------------------------------------------------*/
+/*------------------------------------------------------------------------------
+  ssc_run_some: Executes some iterations of the simulation. It returns
+  immediately if there is nothing to do.
+------------------------------------------------------------------------------*/
 extern SSC_SIM_EXPORT
   bl_err ssc_try_run_some (ssc* sim);
-/*----------------------------------------------------------------------------*/
-/*============================================================================*/
-/* Data exchange funcs (Thread safe)*/
-/*============================================================================*/
+/*==============================================================================
+ Data exchange funcs (Thread safe)
+ =============================================================================*/
 /* ssc_block: Blocks any new input to the ssc instance, any call to write will
     return "bl_locked" */
 /*----------------------------------------------------------------------------*/

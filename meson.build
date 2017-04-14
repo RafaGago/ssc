@@ -42,7 +42,8 @@ testincludedirs += base_library_testincludedirs
 pkg_mod = import ('pkgconfig')
 install_subdir ('include/ssc', install_dir : 'include')
 
-cflags = []
+# "BL_USE_CLOCK_MONOTONIC_RAW" is needed, otherwise weird timing bugs happen.
+cflags = base_library.get_variable ('cflags')
 lib_cflags = []
 test_cflags = []
 test_link_args = [ cmocka_lib ]
@@ -55,7 +56,6 @@ endif
 
 cc = meson.get_compiler ('c')
 if cc.get_id() == 'gcc' or cc.get_id() == 'clang'
-    cflags += ['-fvisibility=hidden', '-fno-stack-protector']
     if get_option ('pic_statlibs') and libtype == 'static_library'
         lib_cflags += ['-fPIC']
     endif

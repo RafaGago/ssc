@@ -8,11 +8,11 @@
 #define log_warning(...)
 #define log_error(...)
 
-#define log_trace_if(cond, ...)
-#define log_debug_if(cond, ...)
-#define log_notice_if(cond, ...)
-#define log_warning_if(cond, ...)
-#define log_error_if(cond, ...)
+#define log_trace_if(cond, ...) (void)(cond)
+#define log_debug_if(cond, ...) (void)(cond)
+#define log_notice_if(cond, ...) (void)(cond)
+#define log_warning_if(cond, ...) (void)(cond)
+#define log_error_if(cond, ...) (void)(cond)
 
 #define log_fl_trace(...)
 #define log_fl_debug(...)
@@ -20,11 +20,11 @@
 #define log_fl_warning(...)
 #define log_fl_error(...)
 
-#define log_fl_trace_if(cond, ...)
-#define log_fl_debug_if(cond, ...)
-#define log_fl_notice_if(cond, ...)
-#define log_fl_warning_if(cond, ...)
-#define log_fl_error_if(cond, ...)
+#define log_fl_trace_if(cond, ...) (void)(cond)
+#define log_fl_debug_if(cond, ...) (void)(cond)
+#define log_fl_notice_if(cond, ...) (void)(cond)
+#define log_fl_warning_if(cond, ...) (void)(cond)
+#define log_fl_error_if(cond, ...) (void)(cond)
 
 #endif /* __SSC_LOG_H__ */
 

@@ -26,12 +26,13 @@ bl_err ssc_in_q_destroy (ssc_in_q* q, alloc_tbl const* alloc)
     bl_dealloc (alloc, dat);
   }
   mpmc_bt_destroy (&q->queue, alloc);
+  return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
 u8* ssc_in_q_try_consume (ssc_in_q* q)
 {
-  u8*    ret = nullptr;
-  bl_err err = mpmc_bt_consume_sc (&q->queue, &q->last_op, &ret);
+  u8* ret = nullptr;
+  mpmc_bt_consume_sc (&q->queue, &q->last_op, &ret);
   return ret;
 }
 /*---------------------------------------------------------------------------*/

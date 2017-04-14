@@ -21,7 +21,6 @@ two_fiber_tests_ctx;
 /*---------------------------------------------------------------------------*/
 /*TRANSLATION UNIT GLOBALS*/
 /*---------------------------------------------------------------------------*/
-static const void* fiber_context_const = (void*) 0xfe;
 static const u8    fiber1_match        = 0xcc;
 static const u8    fiber1_resp         = 0xdd;
 static const u8    fiber2_match        = 0xee;
@@ -66,8 +65,6 @@ static void queue_output_fiber1(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
-  sim_env* env             = (sim_env*) sim_context;
-  two_fiber_tests_ctx* ctx = (two_fiber_tests_ctx*) env->ctx;
   assert_true (sim_context == (void*) &g_env);
 
   memr16 match = memr16_rv ((void*) &fiber1_match, 1);
@@ -85,8 +82,6 @@ static void queue_output_fiber2(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
-  sim_env* env             = (sim_env*) sim_context;
-  two_fiber_tests_ctx* ctx = (two_fiber_tests_ctx*) env->ctx;
   assert_true (sim_context == (void*) &g_env);
 
   memr16 match = memr16_rv ((void*) &fiber2_match, 1);
@@ -104,8 +99,6 @@ static void wait_wake_fiber1(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
-  sim_env* env             = (sim_env*) sim_context;
-  two_fiber_tests_ctx* ctx = (two_fiber_tests_ctx*) env->ctx;
   assert_true (sim_context == (void*) &g_env);
 
   memr16 match = memr16_rv ((void*) &fiber1_match, 1);
@@ -123,8 +116,6 @@ static void wait_wake_fiber2(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
-  sim_env* env             = (sim_env*) sim_context;
-  two_fiber_tests_ctx* ctx = (two_fiber_tests_ctx*) env->ctx;
   assert_true (sim_context == (void*) &g_env);
 
   while (true) {
@@ -296,8 +287,6 @@ static void select_lowest_next_fiber1(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
-  sim_env* env             = (sim_env*) sim_context;
-  two_fiber_tests_ctx* ctx = (two_fiber_tests_ctx*) env->ctx;
   assert_true (sim_context == (void*) &g_env);
 
   for (uword i = 0; i < select_lowest_next_msgs; ++i) {
@@ -311,8 +300,6 @@ static void select_lowest_next_fiber2(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
-  sim_env* env             = (sim_env*) sim_context;
-  two_fiber_tests_ctx* ctx = (two_fiber_tests_ctx*) env->ctx;
   assert_true (sim_context == (void*) &g_env);
 
   for (uword i = 0; i < select_lowest_next_msgs; ++i) {
@@ -340,10 +327,6 @@ static void select_lowest_next_test (void **state)
 {
   /*tests that the event with the lowest deadline is always selected*/
   two_fiber_tests_ctx* ctx = (two_fiber_tests_ctx*) *state;
-
-  uword count;
-  ssc_output_data read;
-
   bl_err err = ssc_run_setup (ctx->sim);
   assert_true (!err);
 

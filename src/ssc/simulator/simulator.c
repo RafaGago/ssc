@@ -260,7 +260,7 @@ simulator_teardown:
   ssc_simulation_on_teardown (&sim->lib, sim->global.sim_context);
 destroy_cfgs:
   ssc_destroy_fiber_group_cfgs (sim);
-destroy_out_queue:
+/*destroy_out_queue:*/
   ssc_out_q_destroy (&sim->global.out_queue);
 libunload:
   ssc_simulation_unload (&sim->lib);
@@ -401,10 +401,10 @@ dealloc:
 /*----------------------------------------------------------------------------*/
 SSC_SIM_EXPORT bl_err ssc_read(
   ssc*             sim,
-  uword*             d_consumed,
+  uword*           d_consumed,
   ssc_output_data* d,
-  uword              d_capacity,
-  u32                timeout_us
+  uword            d_capacity,
+  u32              timeout_us
   )
 {
   return ssc_out_q_consume(
@@ -419,6 +419,7 @@ SSC_SIM_EXPORT bl_err ssc_dealloc_read_data(
   ssc_out_memory_dealloc(
     sim->global.sim_dealloc, sim->global.sim_context, read_data
     );
+  return bl_ok;
 }
 /*----------------------------------------------------------------------------*/
 

@@ -11,9 +11,6 @@
 
 #include <ssc/cmocka_pre.h>
 
-/*not needed*/
-#include <stdio.h>
-
 /*A quick check that the timestamp calculations aren't very broken by
   sleeping the thread*/
 /*---------------------------------------------------------------------------*/
@@ -37,7 +34,6 @@ basic_tests_ctx;
 /*---------------------------------------------------------------------------*/
 /*TRANSLATION UNIT GLOBALS*/
 /*---------------------------------------------------------------------------*/
-static const void* fiber_context_const   = (void*) 0xfe;
 static const u8    fiber_match           = 0xdd;
 static const u8    fiber_resp            = 0xee;
 static const uword queue_timeout_us      = 1000;
@@ -72,8 +68,6 @@ static void fiber_to_test_the_queue(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
-  sim_env* env         = (sim_env*) sim_context;
-  basic_tests_ctx* ctx = (basic_tests_ctx*) env->ctx;
   assert_true (sim_context == (void*) &g_env);
   assert_true (fiber_context == (void*) &g_ctx);
 
@@ -93,8 +87,6 @@ static void fiber_to_test_queue_timeout(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
-  sim_env* env         = (sim_env*) sim_context;
-  basic_tests_ctx* ctx = (basic_tests_ctx*) env->ctx;
   assert_true (sim_context == (void*) &g_env);
   assert_true (fiber_context == (void*) &g_ctx);
 
@@ -114,13 +106,10 @@ static void fiber_to_test_queue_timeout_cancellation(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
-  sim_env* env         = (sim_env*) sim_context;
-  basic_tests_ctx* ctx = (basic_tests_ctx*) env->ctx;
   assert_true (sim_context == (void*) &g_env);
   assert_true (fiber_context == (void*) &g_ctx);
 
   memr16 match = memr16_rv ((void*) &fiber_match, 1);
-  tstamp start = ssc_get_timestamp (h);
   memr16 in    = ssc_timed_peek_input_head_match(
     h, match, queue_timeout_long_us
     );
@@ -143,8 +132,6 @@ static void fiber_to_test_delay(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
-  sim_env* env         = (sim_env*) sim_context;
-  basic_tests_ctx* ctx = (basic_tests_ctx*) env->ctx;
   assert_true (sim_context == (void*) &g_env);
   assert_true (fiber_context == (void*) &g_ctx);
 
@@ -160,8 +147,6 @@ static void fiber_to_test_wait_timeout(
   ssc_handle h, void* fiber_context, void* sim_context
   )
 {
-  sim_env* env         = (sim_env*) sim_context;
-  basic_tests_ctx* ctx = (basic_tests_ctx*) env->ctx;
   assert_true (sim_context == (void*) &g_env);
   assert_true (fiber_context == (void*) &g_ctx);
 
@@ -257,20 +242,6 @@ static int delay_test_setup (void **state)
   ssc_fiber_cfg fibers[1];
   fibers[0] = ssc_fiber_cfg_rv(
     0, fiber_to_test_delay, test_fiber_setup, test_fiber_teardown, &g_ctx
-    );
-  generic_test_setup (state, fibers, arr_elems (fibers));
-  return 0;
-}
-/*---------------------------------------------------------------------------*/
-static int test_wait_timeout_setup (void **state)
-{
-  ssc_fiber_cfg fibers[1];
-  fibers[0] = ssc_fiber_cfg_rv(
-    0,
-    fiber_to_test_wait_timeout,
-     test_fiber_setup,
-      test_fiber_teardown,
-       &g_ctx
     );
   generic_test_setup (state, fibers, arr_elems (fibers));
   return 0;
@@ -390,7 +361,6 @@ static void answer_after_blocking_timeout_test (void **state)
 
   uword count;
   ssc_output_data read;
-
   err = ssc_run_some (ctx->sim, queue_timeout_us * 20);
   assert_true (!err);
   err = ssc_read (ctx->sim, &count, &read, 1, 0);
