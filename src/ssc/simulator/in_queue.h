@@ -15,8 +15,8 @@ enum ssc_in_q_sig_e {
 typedef uword ssc_in_q_sig;
 /*----------------------------------------------------------------------------*/
 typedef struct ssc_in_q {
-  mpmc_bt       queue;
-  mpmc_b_ticket last_ticket;
+  mpmc_bt   queue;
+  mpmc_b_op last_op;
 }
 ssc_in_q;
 /*----------------------------------------------------------------------------*/

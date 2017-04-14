@@ -65,8 +65,8 @@ void ssc_out_q_destroy (ssc_out_q* q)
 bl_err ssc_out_q_produce (ssc_out_q* q, ssc_output_data* d)
 {
   bl_assert (q && d);
-  mpmc_b_ticket t;
-  return mpmc_bt_produce_sp (&q->queue, &t, d);
+  mpmc_b_op op;
+  return mpmc_bt_produce_sp (&q->queue, &op, d);
 }
 /*----------------------------------------------------------------------------*/
 static inline void copy_to_output_data(
@@ -118,10 +118,10 @@ static bool ssc_out_q_transfer (ssc_out_q* q)
 {
   bl_err err = bl_ok;
   while (!err && out_q_sorted_can_insert (&q->tsorted)) {
-    mpmc_b_ticket    t;
-    ssc_output_data  d;
+    mpmc_b_op       op;
+    ssc_output_data d;
     out_q_sorted_entry e;
-    err = mpmc_bt_consume_sc (&q->queue, &t, &d);
+    err = mpmc_bt_consume_sc (&q->queue, &op, &d);
     if (err) { break; }
     copy_to_sorted_data (&e, &d);
     out_q_sorted_insert (&q->tsorted, &e);
@@ -159,10 +159,10 @@ try_again:
   case 1:
     return bl_ok; /*fast-path*/
   case 2:{ /*edge case*/
-    mpmc_b_ticket    t;
+    mpmc_b_op        op;
     ssc_output_data  d;
     out_q_sorted_entry e;
-    bl_err err = mpmc_bt_consume_sc (&q->queue, &t, &d);
+    bl_err err = mpmc_bt_consume_sc (&q->queue, &op, &d);
     if (!err) {
       out_q_sorted_entry const* drop = out_q_sorted_get_head (&q->tsorted);
       bl_assert (drop);
