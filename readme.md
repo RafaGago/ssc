@@ -75,8 +75,8 @@ Features
 Known quirks
 ==============
 
-The group input queue (simulator to simulation) is reference counted, so 
-fibers that don't read/consume the input queue periodically block the 
+The group input queue (simulator to simulation) is reference counted, so
+fibers that don't read/consume the input queue periodically block the
 input queue resource deallocation. A produce-only fiber should either mark
 itself as produce-only through the "ssc_set_fiber_as_produce_only" call or
 periodically call "ssc_drop_all_input".
@@ -87,8 +87,8 @@ can see modifications done in "the future" from another fiber. The
 lookahead feature can be disabled through the "ssc_set_fiber_as_real_time"
 call.
 
-Select the simulation process/fiber stack size wisely. Otherwise stack 
-overflows will show themselves as segfaults or weird behavior. This is done 
+Select the simulation process/fiber stack size wisely. Otherwise stack
+overflows will show themselves as segfaults or weird behavior. This is done
 on the "ssc_add_fiber" function through the cfg parameter. if the program is
 behaving in a strange way this is the first thing to suspect of.
 
@@ -97,25 +97,34 @@ Current status
 
 Basic testing done. Lots of tests to be written.
 
-Build (Linux)
-=============
+Build on Linux
+=================
 
-Be aware that cmocka requires CMake.
+On debian based systems:
 
+> sudo apt install meson cmake
 > git submodule update --init --recursive
->
-> cd dependencies
->
-> ./prepare_dependencies.sh
->
-> cd ../build/premake
->
-> premake5 gmake
->
-> make -C ../linux config=release verbose=yes
 
-Build (Windows)
+To install to a intermediate directory
+
+> mkdir ninja_build
+> meson ninja_build --prefix=/ --buildtype=release
+> ninja -C ninja_build
+> ninja -C ninja_build test
+> DESTDIR=$(pwd)/ssc_install ninja -C ninja_build install
+
+To install on your system directories
+
+> mkdir ninja_build
+> meson ninja_build --buildtype=release
+> ninja -C ninja_build
+> ninja -C ninja_build test
+> sudo ninja -C ninja_build install
+
+Build on Windows
 ===============
 
-Hopefully with Windows bash the steps above will work. the premake5 command
-should be run to generate Visual Studio solutions. (e.g.: premake5 vs2015).
+If you are planning to run the unit tests you need CMake, as cmocka uses it
+as its build system.
+
+2. TODO (meson untested on Windows)

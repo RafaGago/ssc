@@ -1,11 +1,3 @@
-[submodule "dependencies/base_library"]
-	path = dependencies/base_library
-	url = https://github.com/RafaGago/base_library.git
-	branch = master
-[submodule "dependencies/libcoro"]
-	path = dependencies/libcoro
-	url = https://github.com/RafaGago/libcoro.git
-	branch = master
 [submodule "subprojects/base_library"]
 	path = subprojects/base_library
 	url = https://github.com/RafaGago/base_library.git
