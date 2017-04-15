@@ -13,11 +13,12 @@ project(
         ]
     )
 
-base_library   = subproject('base_library')
-base_lib       = base_library.get_variable ('base_lib')
-nonblock_lib   = base_library.get_variable ('nonblock_lib')
-taskqueue_lib  = base_library.get_variable ('taskqueue_lib')
-libcmocka_path = base_library.get_variable ('libcmocka_path')
+base_library      = subproject ('base_library')
+base_lib          = base_library.get_variable ('base_lib')
+nonblock_lib      = base_library.get_variable ('nonblock_lib')
+taskqueue_lib     = base_library.get_variable ('taskqueue_lib')
+libcmocka_path    = base_library.get_variable ('libcmocka_path')
+build_helpers_dir = base_library.get_variable ('build_helpers_dir')
 
 include_dirs = [
     include_directories ('include'),
