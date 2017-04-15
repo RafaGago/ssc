@@ -42,7 +42,9 @@ test_link_args = [ libcmocka_path ]
 
 if get_option ('sharedlib')
     libtype = 'shared_library'
+    cflags += [ '-DSSC_SIM_SHAREDLIB', '-DSSC_SIM_SHAREDLIB_COMPILATION' ]
 else
+    cflags += [ '-DSSC_PRIVATE_SYMS', '-DSSC_SIM_PRIVATE_SYMS' ]
     libtype = 'static_library'
 endif
 
