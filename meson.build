@@ -13,31 +13,22 @@ project(
         ]
     )
 
-run_command(
-    'git', 'submodule', 'update', '--init', '--recursive'
-    )
+base_library   = subproject('base_library')
+base_lib       = base_library.get_variable ('base_lib')
+nonblock_lib   = base_library.get_variable ('nonblock_lib')
+taskqueue_lib  = base_library.get_variable ('taskqueue_lib')
+libcmocka_path = base_library.get_variable ('libcmocka_path')
 
-base_library  = subproject('base_library')
-
-base_lib      = base_library.get_variable ('base_lib')
-nonblock_lib  = base_library.get_variable ('nonblock_lib')
-taskqueue_lib = base_library.get_variable ('taskqueue_lib')
-
-base_library_includedirs = base_library.get_variable ('includedirs')
-base_library_testincludedirs = base_library.get_variable ('testincludedirs')
-
-cmocka_lib = base_library.get_variable ('cmockalib_abspath')
-
-includedirs = [
+include_dirs = [
     include_directories ('include'),
     include_directories ('src'),
     include_directories ('gitmodules/libcoro'),
 ]
-includedirs += base_library_includedirs
+include_dirs += base_library.get_variable ('include_dirs')
 
-testincludedirs = includedirs
-testincludedirs += include_directories ('test/src')
-testincludedirs += base_library_testincludedirs
+test_include_dirs  = include_dirs
+test_include_dirs += [ include_directories ('test/src') ]
+test_include_dirs +=  base_library.get_variable ('test_include_dirs')
 
 pkg_mod = import ('pkgconfig')
 install_subdir ('include/ssc', install_dir : 'include')
@@ -46,7 +37,7 @@ install_subdir ('include/ssc', install_dir : 'include')
 cflags = base_library.get_variable ('cflags')
 lib_cflags = []
 test_cflags = []
-test_link_args = [ cmocka_lib ]
+test_link_args = [ libcmocka_path ]
 
 if get_option ('sharedlib')
     libtype = 'shared_library'
@@ -91,7 +82,7 @@ ssc_lib = build_target(
     'ssc',
     ssc_srcs,
     target_type         : libtype,
-    include_directories : includedirs,
+    include_directories : include_dirs,
     link_with           : [ base_lib, nonblock_lib, taskqueue_lib ],
     c_args              : cflags + lib_cflags,
     install             : true
@@ -108,7 +99,7 @@ test(
     executable(
         'ssc-test',
         ssc_test_srcs,
-        include_directories : testincludedirs,
+        include_directories : test_include_dirs,
         link_with           : ssc_lib,
         link_args           : test_link_args,
         dependencies        : threads
