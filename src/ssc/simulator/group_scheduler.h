@@ -56,13 +56,11 @@ typedef struct gsched_fiber_state {
 }
 gsched_fiber_state;
 /*----------------------------------------------------------------------------*/
-define_ringb_types (gsched_fiber_queue, u8*)
-/*----------------------------------------------------------------------------*/
 typedef struct gsched_fiber {
   gsched*            parent;
   coro_context       coro_ctx;
   struct coro_stack  stack;
-  gsched_fiber_queue queue;
+  ringb              queue;
   gsched_fiber_cfg   cfg;
   gsched_fiber_state state;
 }
@@ -88,8 +86,6 @@ typedef union gsched_timed_value {
 }
 gsched_timed_value;
 /*----------------------------------------------------------------------------*/
-define_flat_deadlines_types (gsched_timed, gsched_timed_value)
-/*----------------------------------------------------------------------------*/
 typedef struct gsched_mainloop_vars {
   tstamp   now;
   u8*      unhandled_bstream;
@@ -101,9 +97,9 @@ gsched_mainloop_vars;
 /*----------------------------------------------------------------------------*/
 typedef struct gsched {
   ssc_in_q              queue;
-  gsched_timed          timed; /*state timeouts*/
+  flat_deadlines        timed; /*state timeouts*/
   gsched_fibers         sq[3]; /*state queues*/
-  gsched_timed          future_wakes;
+  flat_deadlines        future_wakes;
   gsched_fibers         finished;
   ssc_fiber_cfgs const* fiber_cfgs;
   ssc_global*           global;

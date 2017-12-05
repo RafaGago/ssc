@@ -8,19 +8,23 @@
 /*----------------------------------------------------------------------------*/
 /* GENERIC DATA STRUCTURES */
 /*----------------------------------------------------------------------------*/
-declare_ringb_funcs (gsched_fiber_queue, u8*, static inline)
-define_ringb_funcs (gsched_fiber_queue, u8*, static inline)
+define_ringb_funcs (gsched_fiber_queue, u8*);
 /*----------------------------------------------------------------------------*/
-static inline word gsched_fibers_node_cmp(
-  gsched_timed_value const* a, gsched_timed_value const* b
-  )
+typedef struct gsched_timed_entry {
+  tstamp             time;
+  gsched_timed_value value;
+}
+gsched_timed_entry;
+/*----------------------------------------------------------------------------*/
+static inline word gsched_fibers_node_cmp (void const* a, void const* b)
 {
-  return ((word) a->fn) - ((word) b->fn);
+  gsched_timed_entry const* av = (gsched_timed_entry const*) a;
+  gsched_timed_entry const* bv = (gsched_timed_entry const*) b;
+  return ((word) av->value.fn) - ((word) bv->value.fn);
 }
 /*----------------------------------------------------------------------------*/
-declare_flat_deadlines_funcs (gsched_timed, gsched_timed_value, static)
 define_flat_deadlines_funcs(
-  gsched_timed, gsched_timed_value, gsched_fibers_node_cmp, static
+  gsched_timed, gsched_timed_entry, gsched_fibers_node_cmp
   )
 /*----------------------------------------------------------------------------*/
 /* CONSTANTS */
@@ -201,7 +205,7 @@ static inline void fiber_node_program_timed(
   )
 {
   gsched_timed_entry e;
-  e.key      = t;
+  e.time     = t;
   e.value.fn = n;
   bl_assert (gsched_timed_can_insert (&gs->timed));
   gsched_timed_insert (&gs->timed, &e);
@@ -211,9 +215,10 @@ static inline void fiber_node_cancel_timed(
   gsched* gs, gsched_fibers_node* n, tstamp t
   )
 {
-  gsched_timed_value tv, dummy;
-  tv.fn = n;
-  gsched_timed_try_get_and_drop (&gs->timed, &dummy, t, &tv);
+  gsched_timed_entry tv, dummy;
+  tv.time     = t;
+  tv.value.fn = n;
+  gsched_timed_try_get_and_drop (&gs->timed, &dummy, &tv);
 }
 /*----------------------------------------------------------------------------*/
 static void fiber_node_yield_until_fiber_time(
@@ -262,7 +267,7 @@ retry:
   else if (gsched_timed_can_insert (&gs->future_wakes)) {
     bl_assert (tdiff > 0);
     gsched_timed_entry e;
-    e.key              = fn->fiber.state.time;
+    e.time             = fn->fiber.state.time;
     e.value.wake.id    = wait_id;
     e.value.wake.count = count;
     gsched_timed_insert (&gs->future_wakes, &e);
@@ -286,7 +291,7 @@ bool ssc_api_wait (ssc_handle h, uword_d2 wait_id, toffset us)
 
   if (us != 0) {
     gsched_timed_entry e;
-    e.key      = fn->fiber.state.time + bl_usec_to_tstamp (us);
+    e.time     = fn->fiber.state.time + bl_usec_to_tstamp (us);
     e.value.fn = fn;
     bl_assert_side_effect(
       gsched_timed_insert (&fn->fiber.parent->timed, &e) == bl_ok
@@ -799,15 +804,16 @@ bl_err gsched_init(
   if (err) {
     goto rollback;
   }
+  tstamp now = bl_get_tstamp();
   /*timed item queue*/
   err = gsched_timed_init(
-    &gs->timed, ssc_fiber_cfgs_size (fiber_cfgs), alloc
+    &gs->timed, now, ssc_fiber_cfgs_size (fiber_cfgs), alloc
     );
   if (err) {
     goto destroy_q;
   }
   /*future wakes queue*/
-  err = gsched_timed_init (&gs->future_wakes, 32, alloc);
+  err = gsched_timed_init (&gs->future_wakes, now, 32, alloc);
   if (err) {
     goto destroy_timed;
   }
@@ -1024,13 +1030,13 @@ static inline void gsched_try_schedule_to_nearest_timed_event (gsched* gs)
   case 0:
     return;
   case 1:
-    lowest = timed->key;
+    lowest = timed->time;
     break;
   case 2:
-    lowest = wake->key;
+    lowest = wake->time;
     break;
   case 3:
-    lowest = tstamp_min (timed->key, wake->key);
+    lowest = tstamp_min (timed->time, wake->time);
     break;
   default:
     return;
@@ -1124,9 +1130,7 @@ static void gsched_loop (gsched* gs, taskq_id id, bool from_timed_event)
   /*scan for scheduled deferred wake operations*/
   while (true) {
     gsched_timed_entry const* future =
-      gsched_timed_get_head_if_expired_explicit(
-        &gs->future_wakes, gs->vars.now
-        );
+      gsched_timed_get_head_if_expired (&gs->future_wakes, true, gs->vars.now);
     if (!future) {
       break;
     }
@@ -1139,7 +1143,7 @@ static void gsched_loop (gsched* gs, taskq_id id, bool from_timed_event)
   /*move expired tasks in the timed queue to the run queue*/
   while (true) {
     gsched_timed_entry const* timed =
-      gsched_timed_get_head_if_expired_explicit (&gs->timed, gs->vars.now);
+      gsched_timed_get_head_if_expired (&gs->timed, true, gs->vars.now);
     if (!timed) {
       break;
     }

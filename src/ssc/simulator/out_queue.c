@@ -12,19 +12,23 @@
 #include <ssc/simulator/out_queue.h>
 #include <ssc/simulator/out_data_memory.h>
 #include <ssc/simulator/global.h>
+
 /*----------------------------------------------------------------------------*/
-static inline word out_q_sorted_value_cmp(
-  out_q_sorted_value const* a, out_q_sorted_value const* b
-  )
+typedef struct out_q_sorted_entry {
+  tstamp             time;
+  out_q_sorted_value value;
+}
+out_q_sorted_entry;
+/*----------------------------------------------------------------------------*/
+static inline word out_q_sorted_value_cmp (void const* a, void const* b)
 {
-  return memcmp (a, b, sizeof *a);
+  out_q_sorted_entry const* ae = (out_q_sorted_entry const*) a;
+  out_q_sorted_entry const* be = (out_q_sorted_entry const*) b;
+  return memcmp (&ae->value, &be->value, sizeof ae->value);
 }
 /*----------------------------------------------------------------------------*/
-declare_flat_deadlines_funcs(
-  out_q_sorted, out_q_sorted_value, static inline
-  )
 define_flat_deadlines_funcs(
-  out_q_sorted, out_q_sorted_value, out_q_sorted_value_cmp, static inline
+  out_q_sorted, out_q_sorted_entry, out_q_sorted_value_cmp
   )
 /*----------------------------------------------------------------------------*/
 bl_err ssc_out_q_init (ssc_out_q* q, uword size, ssc_global const* global)
@@ -39,7 +43,9 @@ bl_err ssc_out_q_init (ssc_out_q* q, uword size, ssc_global const* global)
     bl_alignof (ssc_output_data)
     );
   if (err) { return err; }
-  err = out_q_sorted_init (&q->tsorted, size * 4, global->alloc);
+  err = out_q_sorted_init(
+    &q->tsorted, bl_get_tstamp(), size * 4, global->alloc
+    );
   if (err) {
     mpmc_bt_destroy (&q->queue, global->alloc);
   }
@@ -76,7 +82,7 @@ static inline void copy_to_output_data(
   d->data = e->value.data;
   d->gid  = e->value.gid;
   d->type = e->value.type;
-  d->time = e->key;
+  d->time = e->time;
 }
 /*----------------------------------------------------------------------------*/
 static inline void  copy_to_sorted_data(
@@ -86,7 +92,7 @@ static inline void  copy_to_sorted_data(
    e->value.data = d->data;
    e->value.gid  = d->gid;
    e->value.type = d->type;
-   e->key        = d->time;
+   e->time       = d->time;
 }
 /*----------------------------------------------------------------------------*/
 static uword ssc_out_q_try_read (ssc_out_q* q, ssc_output_data* d, uword count)
@@ -98,7 +104,7 @@ static uword ssc_out_q_try_read (ssc_out_q* q, ssc_output_data* d, uword count)
 
 try_again:
   while (copied < count) {
-    outdata = out_q_sorted_get_head_if_expired_explicit (&q->tsorted, now);
+    outdata = out_q_sorted_get_head_if_expired (&q->tsorted, true, now);
     if (!outdata) {
       break;
     }

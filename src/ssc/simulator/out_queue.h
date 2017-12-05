@@ -20,11 +20,9 @@ typedef struct out_q_sorted_value {
 }
 out_q_sorted_value;
 /*----------------------------------------------------------------------------*/
-define_flat_deadlines_types (out_q_sorted, out_q_sorted_value)
-/*----------------------------------------------------------------------------*/
 typedef struct ssc_out_q {
   mpmc_bt                  queue;
-  out_q_sorted             tsorted;
+  flat_deadlines           tsorted;
   struct ssc_global const* global;
 }
 ssc_out_q;

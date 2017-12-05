@@ -8,6 +8,7 @@ project(
     license : 'BSD-3',
     default_options : [
         'c_std=gnu99',
+        'cpp_std=gnu++11', # Just to be able to compile base_library C++ tests
 #        'warning_level=1',
         'default_library=static'
         ]
