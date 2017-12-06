@@ -807,7 +807,10 @@ bl_err gsched_init(
   tstamp now = bl_get_tstamp();
   /*timed item queue*/
   err = gsched_timed_init(
-    &gs->timed, now, ssc_fiber_cfgs_size (fiber_cfgs), alloc
+    &gs->timed,
+    now,
+    next_pow2_u (ssc_fiber_cfgs_size (fiber_cfgs)),
+    alloc
     );
   if (err) {
     goto destroy_q;
