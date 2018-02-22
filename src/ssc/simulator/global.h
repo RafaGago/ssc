@@ -17,7 +17,7 @@ typedef struct ssc_global {
   ssc_sim_dealloc_signature                     sim_dealloc;
 #ifdef SSC_BEFORE_FIBER_CONTEXT_SWITCH_EVT
   ssc_sim_before_fiber_context_switch_signature sim_before_fiber_context_switch;
-#endif  
+#endif
   alloc_tbl const*                              alloc;
 }
 ssc_global;

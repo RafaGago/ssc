@@ -22,11 +22,11 @@
 
   #elif (defined (SSC_SIM_SHAREDLIB) &&\
     !defined (SSC_SIM_SHAREDLIB_USING_DEF))
-    
-    #undef SSC_SIM_EXPORT  
+
+    #undef SSC_SIM_EXPORT
     #define SSC_SIM_EXPORT __declspec (dllimport)
 
-  #endif  
+  #endif
 #endif
 
 #endif /* __BL_SIMULATOR_LIBEXPORT_H__ */

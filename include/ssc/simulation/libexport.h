@@ -21,11 +21,11 @@
     #define SSC_EXPORT __declspec (dllexport)
 
   #elif (defined (SSC_SHAREDLIB) && !defined (SSC_SHAREDLIB_USING_DEF))
-    
-    #undef SSC_EXPORT  
+
+    #undef SSC_EXPORT
     #define SSC_EXPORT __declspec (dllimport)
 
-  #endif  
+  #endif
 #endif
 
 #endif /* __BL_LIBEXPORT_H__ */

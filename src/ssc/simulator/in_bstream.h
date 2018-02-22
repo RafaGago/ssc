@@ -9,21 +9,21 @@
 /*----------------------------------------------------------------------------*/
 enum in_bstream_header_e {
   /*max align (from malloc)*/
-  in_bstream_tstamp_bytes       = sizeof (tstamp), 
+  in_bstream_tstamp_bytes       = sizeof (tstamp),
   /*at least tstamp alignment (32 or 64)*/
   in_bstream_payload_size_bytes = sizeof (u16),
-  /*at least u16 alignment*/ 
-  in_bstream_refcount_bytes     = sizeof (u8), 
+  /*at least u16 alignment*/
+  in_bstream_refcount_bytes     = sizeof (u8),
 
   in_bstream_tstamp_offset = 0,
 
-  in_bstream_payload_size_offset = 
+  in_bstream_payload_size_offset =
     in_bstream_tstamp_offset + in_bstream_tstamp_bytes,
 
-  in_bstream_refcount_offset = 
+  in_bstream_refcount_offset =
     in_bstream_payload_size_offset + in_bstream_payload_size_bytes,
 
-  in_bstream_payload_offset = 
+  in_bstream_payload_offset =
     in_bstream_refcount_offset + in_bstream_refcount_bytes,
 
   in_bstream_overhead = in_bstream_payload_offset,
