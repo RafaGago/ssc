@@ -13,13 +13,13 @@ bl_err ssc_sim_on_setup(
   ssc_fiber_cfg const* cfg = env->cfg;
   for (uword i = 0; i < env->cfg_count; ++i) {
     bl_err err = ssc_add_fiber (h, cfg);
-    if (err) {
+    if (err.bl) {
       return err;
     }
     ++cfg;
   }
   *sim_context = env;
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 void ssc_sim_on_teardown (void* sim_context)

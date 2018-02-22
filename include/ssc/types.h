@@ -61,7 +61,7 @@ static inline void ssc_output_read_as_error(
   ssc_output_data const* d, bl_err* err, char const** str
   )
 {
-  *err = (bl_err) memr16_size (d->data);
+  *err = bl_mkerr (memr16_size (d->data));
   *str = memr16_beg_as (d->data, char const);
 }
 /*----------------------------------------------------------------------------*/

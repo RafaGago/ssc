@@ -103,7 +103,7 @@ static inline bl_err fiber_init(
   uword stack_size = div_ceil (cfg->min_stack_size, sizeof (void*));
   int coro_noerr   = coro_stack_alloc (&f->stack, stack_size);
   if (!coro_noerr) {
-    return bl_alloc;
+    return bl_mkerr (bl_alloc);
   }
   coro_create(
     &f->coro_ctx, fiber_function, fn, f->stack.sptr, stack_size
@@ -116,7 +116,7 @@ static inline bl_err fiber_init(
   f->cfg.run_cfg  = cfg->run_cfg;
   f->state.id     = fstate_run;
   f->state.time   = t;
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static void gsched_fiber_drop_input_head (gsched_fiber* f)
@@ -294,7 +294,7 @@ bool ssc_api_wait (ssc_handle h, uword_d2 wait_id, toffset us)
     e.time     = fn->fiber.state.time + bl_usec_to_tstamp (us);
     e.value.fn = fn;
     bl_assert_side_effect(
-      gsched_timed_insert (&fn->fiber.parent->timed, &e) == bl_ok
+      gsched_timed_insert (&fn->fiber.parent->timed, &e).bl == bl_ok
       );
   }
   fiber_node_yield_to_sched (fn);
@@ -604,11 +604,13 @@ void ssc_api_produce_error(
   ssc_output_data dat;
   dat.gid  = fn->fiber.parent->gid;
   dat.type = ssc_type_error;
-  dat.data = memr16_rv ((void*) static_string, err);
+  dat.data = memr16_rv ((void*) static_string, err.bl);
   dat.time = fn->fiber.state.time;
 
   bl_err e = ssc_out_q_produce (&gs->global->out_queue, &dat);
-  log_error_if (e != bl_ok, "unable to produce output data on fiber: %u", e);
+  log_error_if(
+    e.bl != bl_ok, "unable to produce output data on fiber: %s", bl_strerror (e)
+    );
   fiber_node_forward_progress_limit (gs, fn);
 }
 /*----------------------------------------------------------------------------*/
@@ -624,7 +626,9 @@ static void ssc_produce_output_impl (ssc_handle h, memr16 b, bool dyn)
   dat.time = fn->fiber.state.time;
 
   bl_err e = ssc_out_q_produce (&gs->global->out_queue, &dat);
-  log_error_if (e != bl_ok, "unable to produce output data on fiber: %u", e);
+  log_error_if(
+    e.bl != bl_ok, "unable to produce output data on fiber: %s", bl_strerror (e)
+    );
   fiber_node_forward_progress_limit (gs, fn);
 }
 /*----------------------------------------------------------------------------*/
@@ -648,7 +652,9 @@ static void ssc_produce_string_impl(
   dat.time = fn->fiber.state.time;
 
   bl_err e = ssc_out_q_produce (&gs->global->out_queue, &dat);
-  log_error_if (e != bl_ok, "unable to produce output data on fiber: %u", e);
+  log_error_if(
+    e.bl != bl_ok, "unable to produce output data on fiber: %s", bl_strerror (e)
+    );
   fiber_node_forward_progress_limit (gs, fn);
 }
 /*----------------------------------------------------------------------------*/
@@ -720,14 +726,14 @@ bl_err ssc_api_fiber_set_run_cfg(
   if (!fiber_run_cfg_is_valid (c) ||
     (fiber_is_produce_only (oldflags) && !fiber_is_produce_only (c->run_flags))
     ) {
-    return bl_invalid;
+    return bl_mkerr (bl_invalid);
   }
   fn->fiber.cfg.run_cfg = *c;
   if (fiber_is_produce_only (c->run_flags)) {
     gsched_fiber_drop_all_input (&fn->fiber);
     ++gs->produce_only_fibers;
   }
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 /* GROUP SCHEDULER */
@@ -757,15 +763,15 @@ bl_err gsched_init(
   }
   tailq_init (&gs->finished);
 
-  bl_err err = bl_ok;
+  bl_err err = bl_mkok();
   uword size = fibers_get_chunk_size (fiber_cfgs);
   if (size == 0) {
-    return bl_invalid;
+    return bl_mkerr (bl_invalid);
   }
   /*fiber chunk allocation*/
   gs->mem_chunk = bl_alloc (alloc, size);
   if (!gs->mem_chunk) {
-    return bl_alloc;
+    return bl_mkerr (bl_alloc);
   }
 #ifndef NDEBUG
   memset (gs->mem_chunk, 0xaa, size);
@@ -786,7 +792,7 @@ bl_err gsched_init(
       (uword) addr, gsched_fibers_node
       );
     err = fiber_init (next, gs->vars.now, gs, queue_elems, cfg);
-    if (err) {
+    if (err.bl) {
       goto rollback;
     }
     if (node) {
@@ -801,7 +807,7 @@ bl_err gsched_init(
   err = ssc_in_q_init(
     &gs->queue, round_next_pow2_u (fgroup_cfg->min_queue_size), alloc
     );
-  if (err) {
+  if (err.bl) {
     goto rollback;
   }
   tstamp now = bl_get_tstamp();
@@ -812,12 +818,12 @@ bl_err gsched_init(
     next_pow2_u (ssc_fiber_cfgs_size (fiber_cfgs)),
     alloc
     );
-  if (err) {
+  if (err.bl) {
     goto destroy_q;
   }
   /*future wakes queue*/
   err = gsched_timed_init (&gs->future_wakes, now, 32, alloc);
-  if (err) {
+  if (err.bl) {
     goto destroy_timed;
   }
   return err;
@@ -886,13 +892,13 @@ static void gsched_fibers_transfer_tail_all(
 /*----------------------------------------------------------------------------*/
 bl_err gsched_run_setup (gsched* gs)
 {
-  bl_err err = bl_ok;
+  bl_err err = bl_mkok();
   uword i    = 0;
   uword j;
 
   for (uword i = 0; i < arr_elems_member (gsched, sq); ++i) {
     if (!tailq_empty (&gs->sq[i])) {
-      return bl_preconditions;
+      return bl_mkerr (bl_preconditions);
     }
   }
   gsched_fibers_node* fn, *next;
@@ -905,14 +911,14 @@ bl_err gsched_run_setup (gsched* gs)
     if (f) {
       err = f (fn->fiber.cfg.context, fn->fiber.parent->global->sim_context);
     }
-    if (err) {
+    if (err.bl) {
       goto rollback;
     }
     ++i;
     node_queue_transfer_tail (&gs->sq[q_run], &gs->finished, fn);
   }
   err = gsched_program_schedule (gs);
-  if (err) {
+  if (err.bl) {
     goto rollback;
   }
   return err;
@@ -948,10 +954,10 @@ bl_err gsched_fiber_cfg_validate_correct (ssc_fiber_cfg* cfg)
       cfg->min_queue_size == 0 ||
       !fiber_run_cfg_is_valid (&cfg->run_cfg)
     ) {
-    return bl_invalid;
+    return bl_mkerr (bl_invalid);
   }
   cfg->min_queue_size = round_next_pow2_u (cfg->min_queue_size);
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 static inline uword gsched_consume_inputs (gsched* gs, tstamp* now)
@@ -1059,7 +1065,7 @@ static inline void gsched_try_schedule_to_nearest_timed_event (gsched* gs)
       &gs->vars.prog_id,
       gs->vars.prog_tstamp,
       taskq_task_rv (gsched_loop_from_timed_event, gs)
-      ) == bl_ok
+      ).bl == bl_ok
     );
   gs->vars.has_prog = true;
 }
@@ -1185,29 +1191,29 @@ static void gsched_loop (gsched* gs, taskq_id id, bool from_timed_event)
   }
   ssc_in_q_sig prev_sig;
   bl_err err = ssc_in_q_try_switch_to_idle (&gs->queue, &prev_sig);
-  if (err == bl_preconditions && prev_sig == in_q_ok) {
+  if (err.bl == bl_preconditions && prev_sig == in_q_ok) {
     /* new data, group may make immediate forward progress */
      goto reschedule;
   }
   else {
     /* no immediate forward progress is possible*/
     bl_assert(
-      (!err) ||
-      (err == bl_preconditions && (prev_sig == in_q_sig_idle)) ||
-      (err == bl_preconditions && (prev_sig == in_q_blocked))
+      (!err.bl) ||
+      (err.bl == bl_preconditions && (prev_sig == in_q_sig_idle)) ||
+      (err.bl == bl_preconditions && (prev_sig == in_q_blocked))
       );
     gsched_try_schedule_to_nearest_timed_event (gs);
     return;
   }
 reschedule:
-  bl_assert_side_effect (gsched_program_schedule (gs) == bl_ok);
+  bl_assert_side_effect (gsched_program_schedule (gs).bl == bl_ok);
 }
 /*----------------------------------------------------------------------------*/
 static void gsched_loop_from_timed_event(
   bl_err error, taskq_id id, void* context
   )
 {
-  if (unlikely (error)) {
+  if (unlikely (error.bl)) {
     return;
   }
   gsched_loop ((gsched*) context, id, true);
@@ -1217,7 +1223,7 @@ static void gsched_loop_regular(
   bl_err error, taskq_id id, void* context
   )
 {
-  if (unlikely (error)) {
+  if (unlikely (error.bl)) {
     return;
   }
   gsched_loop ((gsched*) context, id, false);

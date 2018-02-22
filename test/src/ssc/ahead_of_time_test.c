@@ -56,7 +56,7 @@ static void generic_test_setup(
   g_env.teardown  = sim_on_teardown_test;
 
   bl_err err = ssc_create (&g_ctx.sim, "", &g_env);
-  assert_true (!err);
+  assert_true (!err.bl);
   *state = (void*) &g_ctx;
 }
 /*---------------------------------------------------------------------------*/
@@ -77,7 +77,7 @@ static inline void check_has_response(
   uword count;
   ssc_output_data read;
   bl_err err = ssc_read (ctx->sim, &count, &read, 1, timeout);
-  assert_true (!err);
+  assert_true (!err.bl);
   assert_true (read.type == ssc_type_static_bytes);
   assert_true (read.gid == 0);
   assert_true (read.time == time);
@@ -150,11 +150,11 @@ static void future_wake_test (void **state)
 {
   ahot_tests_ctx* ctx = (ahot_tests_ctx*) *state;
   bl_err err          = ssc_run_setup (ctx->sim);
-  assert_true (!err);
+  assert_true (!err.bl);
 
   do {
     err = ssc_run_some (ctx->sim, 1000);
-    assert_true (!err || err == bl_nothing_to_do || err == bl_timeout);
+    assert_true (!err.bl || err.bl == bl_nothing_to_do || err.bl == bl_timeout);
   }
   while (ctx->fiber_count > 0);
 
@@ -165,7 +165,7 @@ static void future_wake_test (void **state)
   assert_true (tstamp_get_diff (ctx->t[1], ctx->t[3]) <= 0);
 
   err = ssc_run_teardown (ctx->sim);
-  assert_true (!err);
+  assert_true (!err.bl);
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -228,11 +228,11 @@ static void future_wait_test (void **state)
 {
   ahot_tests_ctx* ctx = (ahot_tests_ctx*) *state;
   bl_err err          = ssc_run_setup (ctx->sim);
-  assert_true (!err);
+  assert_true (!err.bl);
 
   do {
     err = ssc_run_some (ctx->sim, future_wait_delay_us);
-    assert_true (!err || err == bl_nothing_to_do || err == bl_timeout);
+    assert_true (!err.bl || err.bl == bl_nothing_to_do || err.bl == bl_timeout);
   }
   while (ctx->fiber_count > 0);
 
@@ -252,7 +252,7 @@ static void future_wait_test (void **state)
       bl_tstamp_to_usec (future_wait_delay_us)
     );
   err = ssc_run_teardown (ctx->sim);
-  assert_true (!err);
+  assert_true (!err.bl);
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -291,16 +291,16 @@ static void future_produce_test (void **state)
 {
   ahot_tests_ctx* ctx = (ahot_tests_ctx*) *state;
   bl_err err          = ssc_run_setup (ctx->sim);
-  assert_true (!err);
+  assert_true (!err.bl);
 
   err = ssc_run_some (ctx->sim, future_produce_delay_us);
-  assert_true (!err);
+  assert_true (!err.bl);
   /*everything should be generated on the queue now*/
   for (uword i = 0; i < future_produce_count; ++i) {
     check_has_response (ctx, fiber1_resp, ctx->t[i], future_produce_delay_us);
   }
   err = ssc_run_teardown (ctx->sim);
-  assert_true (!err);
+  assert_true (!err.bl);
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
@@ -346,10 +346,10 @@ static void future_context_switch_produce_test (void **state)
 {
   ahot_tests_ctx* ctx = (ahot_tests_ctx*) *state;
   bl_err err          = ssc_run_setup (ctx->sim);
-  assert_true (!err);
+  assert_true (!err.bl);
 
   err = ssc_run_some (ctx->sim, future_context_switch_produce_delay_us);
-  assert_true (!err);
+  assert_true (!err.bl);
   /*retrieving messages before the context switch*/
   uword i = 0;
   for (; i < future_context_switch_produce_count; ++i) {
@@ -361,15 +361,15 @@ static void future_context_switch_produce_test (void **state)
   uword count;
   ssc_output_data read;
   err = ssc_read (ctx->sim, &count, &read, 1, 0);
-  assert_true (err == bl_timeout);
+  assert_true (err.bl == bl_timeout);
 
   /*running another time slice and checking that the data is present*/
   err = ssc_run_some (ctx->sim, future_context_switch_produce_delay_big_us);
-  assert_true (!err);
+  assert_true (!err.bl);
   check_has_response (ctx, fiber1_resp, ctx->t[i], 0);
 
   err = ssc_run_teardown (ctx->sim);
-  assert_true (!err);
+  assert_true (!err.bl);
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/

@@ -42,11 +42,11 @@ bl_err ssc_out_q_init (ssc_out_q* q, uword size, ssc_global const* global)
     sizeof (ssc_output_data),
     bl_alignof (ssc_output_data)
     );
-  if (err) { return err; }
+  if (err.bl) { return err; }
   err = out_q_sorted_init(
     &q->tsorted, bl_get_tstamp(), size * 4, global->alloc
     );
-  if (err) {
+  if (err.bl) {
     mpmc_bt_destroy (&q->queue, global->alloc);
   }
   q->global = global;
@@ -59,7 +59,7 @@ void ssc_out_q_destroy (ssc_out_q* q)
   ssc_output_data dat;
   uword           v;
 
-  while (ssc_out_q_consume (q, &v, &dat, 1, 0) == bl_ok) {
+  while (ssc_out_q_consume (q, &v, &dat, 1, 0).bl == bl_ok) {
     ssc_out_memory_dealloc(
       q->global->sim_dealloc, q->global->sim_context, &dat
       );
@@ -122,13 +122,13 @@ try_again:
 /*----------------------------------------------------------------------------*/
 static bool ssc_out_q_transfer (ssc_out_q* q)
 {
-  bl_err err = bl_ok;
-  while (!err && out_q_sorted_can_insert (&q->tsorted)) {
+  bl_err err = bl_mkok();
+  while (!err.bl && out_q_sorted_can_insert (&q->tsorted)) {
     mpmc_b_op       op;
     ssc_output_data d;
     out_q_sorted_entry e;
     err = mpmc_bt_consume_sc (&q->queue, &op, &d);
-    if (err) { break; }
+    if (err.bl) { break; }
     copy_to_sorted_data (&e, &d);
     out_q_sorted_insert (&q->tsorted, &e);
   }
@@ -161,15 +161,15 @@ try_again:
   switch ((u_bitv (*d_consumed == 0, 1) | u_bitv (tsorted_not_full, 0))) {
   case 0:
     ssc_out_q_transfer (q); /*making room on the SPSC queue now if necessary*/
-    return bl_ok;
+    return bl_mkok();
   case 1:
-    return bl_ok; /*fast-path*/
+    return bl_mkok(); /*fast-path*/
   case 2:{ /*edge case*/
     mpmc_b_op        op;
     ssc_output_data  d;
     out_q_sorted_entry e;
     bl_err err = mpmc_bt_consume_sc (&q->queue, &op, &d);
-    if (!err) {
+    if (!err.bl) {
       out_q_sorted_entry const* drop = out_q_sorted_get_head (&q->tsorted);
       bl_assert (drop);
       copy_to_output_data (&d, drop);
@@ -188,7 +188,7 @@ try_again:
   d_capacity = 1; /*lowest latency to return something to the caller*/
 
   if (deadline_expired (deadline)) {
-     return bl_timeout;
+     return bl_mkerr (bl_timeout);
   }
   nonblock_backoff_run (&nb);
   goto try_again; /* "while (1)" with no indentation */

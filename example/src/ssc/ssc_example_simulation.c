@@ -308,10 +308,10 @@ bl_err fiber_setup_func (void* fiber_context, void* sim_context)
   fiber_setup_teardown_data* fd = (fiber_setup_teardown_data*) fiber_context;
   fd->str = bl_alloc (&c->alloc, sizeof FIBER_SETUP_TEARDOWN_LIT);
   if (!fd->str) {
-    return bl_alloc;
+    return bl_mkerr (bl_alloc);
   }
   memcpy (fd->str, FIBER_SETUP_TEARDOWN_LIT, sizeof FIBER_SETUP_TEARDOWN_LIT);
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 void fiber_teardown_func (void* fiber_context, void* sim_context)
@@ -341,7 +341,7 @@ bl_err ssc_sim_on_setup(
 
   context* c = (context*) malloc (sizeof *c);
   if (!c) {
-    return bl_alloc;
+    return bl_mkerr (bl_alloc);
   }
   c->timebase_us = *((uword*) simlib_passed_data);
   c->alloc       = get_default_alloc();
@@ -355,72 +355,72 @@ bl_err ssc_sim_on_setup(
 
   cfg.fiber = produce_error_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber = produce_static_bytes_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber = produce_dynamic_bytes_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber = produce_static_string_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber = produce_dynamic_string_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber = try_peek_input_head_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber = peek_input_head_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber = peek_input_head_match_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber = peek_input_head_match_mask_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber = timed_peek_input_head_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber = timed_peek_input_head_match_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber = timed_peek_input_head_match_mask_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber = timestamp_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber = sem_wake_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber = sem_wait_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
   cfg.fiber         = setup_and_teardown_fiber;
   cfg.setup         = fiber_setup_func;
   cfg.teardown      = fiber_teardown_func;
   cfg.fiber_context = &c->setup_teardown_data;
   err               = ssc_add_fiber (h, &cfg);
-  if (err) { return err; }
+  if (err.bl) { return err; }
 
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 void ssc_sim_on_teardown (void* sim_context)

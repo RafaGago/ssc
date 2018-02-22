@@ -10,11 +10,11 @@ bl_err ssc_in_q_init (ssc_in_q* q, uword queue_size, alloc_tbl const* alloc)
   bl_err err = mpmc_bt_init(
     &q->queue, alloc, queue_size, sizeof (u8*), bl_alignof (u8*)
     );
-  if (!err) {
+  if (!err.bl) {
     bl_assert_side_effect(
       mpmc_bt_producer_signal_try_set_tmatch(
         &q->queue, &q->last_op, in_q_sig_idle
-        ) == bl_ok);
+        ).bl == bl_ok);
   }
   return err;
 }
@@ -26,7 +26,7 @@ bl_err ssc_in_q_destroy (ssc_in_q* q, alloc_tbl const* alloc)
     bl_dealloc (alloc, dat);
   }
   mpmc_bt_destroy (&q->queue, alloc);
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 u8* ssc_in_q_try_consume (ssc_in_q* q)
@@ -42,9 +42,9 @@ bl_err ssc_in_q_block (ssc_in_q* q)
   while(
     mpmc_bt_producer_signal_try_set_tmatch(
       &q->queue, &expected, in_q_blocked
-      ) == bl_preconditions
+      ).bl == bl_preconditions
     );
-  return bl_ok;
+  return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
 bl_err ssc_in_q_try_switch_to_idle (ssc_in_q* q, ssc_in_q_sig* prev_sig)
@@ -63,11 +63,11 @@ bl_err ssc_in_q_produce (ssc_in_q* q, u8* in_bstream, bool* idle)
   bl_err err = mpmc_bt_produce_sig_fallback(
     &q->queue, &op, &in_bstream, true, in_q_ok, in_q_blocked, in_q_blocked
     );
-  if (err == bl_ok) {
+  if (err.bl == bl_ok) {
     *idle = (mpmc_b_sig_decode (op) == in_q_sig_idle);
   }
   else {
-    err = (err != bl_preconditions) ? err : bl_locked;
+    err.bl = (err.bl != bl_preconditions) ? err.bl : bl_locked;
   }
   return err;
 }

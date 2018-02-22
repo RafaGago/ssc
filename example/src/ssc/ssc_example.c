@@ -94,7 +94,7 @@ int write_console (void* context)
     }
     print_time (p, bl_get_tstamp());
     bl_err err = ssc_write (p->sim, 0, mem, (u16) ret);
-    if (!err) {
+    if (!err.bl) {
       printf ("-> %s\n", line);
     }
     else {
@@ -110,13 +110,13 @@ int main (int argc, char const* argv[])
   p.running         = 1;
   uword timebase_us = 10000000;
   bl_err err        = ssc_create (&p.sim, "", &timebase_us);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "unable to create ssc: %s\n", bl_err_to_str (err));
     return (int) err;
   }
   p.startup = bl_get_tstamp();
   err       = ssc_run_setup (p.sim);
-  if (err) {
+  if (err.bl) {
     fprintf (stderr, "unable to run ssc setup: %s\n", bl_err_to_str (err));
     goto destroy;
   }
@@ -135,7 +135,7 @@ int main (int argc, char const* argv[])
   ssc_output_data od[16];
   while (p.running) {
     err = ssc_run_some (p.sim, 100000);
-    if (err && err != bl_timeout) {
+    if (err.bl && err.bl != bl_timeout) {
       /*TODO*/
     }
     uword read_msgs;

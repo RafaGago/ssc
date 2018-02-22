@@ -73,7 +73,7 @@ extern bl_err ssc_simlib_load (ssc_simlib* si, char const* path);
 /*----------------------------------------------------------------------------*/
 #define ssc_simulation_var(varname)
 
-#define ssc_simulation_load(simptr, path) bl_ok
+#define ssc_simulation_load(simptr, path) bl_mkok()
 #define ssc_simulation_unload(simptr)
 
 #define ssc_simulation_on_setup(simptr, h, pd, sc)\
