@@ -25,7 +25,7 @@ void produce_error_fiber (ssc_handle h, void* fiber_context, void* sim_context)
   context* c = (context*) sim_context;
   while (true) {
     ssc_delay (h, c->timebase_us);
-    ssc_produce_error (h, bl_ok, "bl_ok: custom string");
+    ssc_produce_error (h, bl_mkok(), "bl_ok: custom string");
     /*fibers that don't read the input queue must release each input message
       reference count manually to allow resource deallocation*/
     ssc_drop_all_input (h);

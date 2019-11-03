@@ -109,3 +109,19 @@ test(
         link_args           : test_link_args,
         dependencies        : threads
     ))
+
+executable(
+    'ssc-example',
+    [
+        'example/src/ssc/ssc_example.c',
+        'example/src/ssc/ssc_example_simulation.c',
+    ],
+    include_directories : include_dirs,
+    link_with           : ssc_lib,
+    c_args              : cflags + lib_cflags,
+    link_args           : test_link_args,
+    dependencies        : threads
+)
+
+
+

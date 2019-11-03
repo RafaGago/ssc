@@ -5,8 +5,6 @@
 #include <bl/base/hex_string.h>
 #include <ssc/simulator/simulator.h>
 
-static define_bl_err_to_str()
-
 /*---------------------------------------------------------------------------*/
 typedef struct program {
   ssc*        sim;
@@ -20,8 +18,8 @@ program;
 void print_time (program* p, bl_timept32 t)
 {
   bl_timeoft32 toff = bl_timept32_to_usec (t - p->startup);
-  bl_timeoft32 sec  = toff / usec_in_sec;
-  bl_timeoft32 usec = toff % usec_in_sec;
+  bl_timeoft32 sec  = toff / bl_usec_in_sec;
+  bl_timeoft32 usec = toff % bl_usec_in_sec;
   printf ("[%05u.%06u]", sec, usec);
 }
 /*---------------------------------------------------------------------------*/
@@ -50,7 +48,7 @@ void process_read_message (program* p, ssc_output_data* od)
     bl_err      err;
     char const* errstr;
     ssc_output_read_as_error (od, &err, &errstr);
-    printf ("<- err: %s, errstr: %s\n", bl_err_to_str (err), errstr);
+    printf ("<- err: %s, errstr: %s\n", bl_strerror (err), errstr);
     break;
   }
   default: break;
@@ -60,9 +58,9 @@ void process_read_message (program* p, ssc_output_data* od)
 int write_console (void* context)
 {
   program* p = (program*) context;
-  size_t size;
+
   while (p->running) {
-    char* line = fgets (&p->send, bl_arr_elems (p->send), stdin);
+    char* line = fgets (&p->send[0], bl_arr_elems (p->send), stdin);
     if (!line) {
       fprintf (stderr, "fgets failed\n");
       continue;
@@ -97,7 +95,7 @@ int write_console (void* context)
       printf ("-> %s\n", line);
     }
     else {
-      fprintf (stderr, "-> ssc_write failed: %s\n", bl_err_to_str (err));
+      fprintf (stderr, "-> ssc_write failed: %s\n", bl_strerror (err));
     }
   }
   return -1;
@@ -110,13 +108,13 @@ int main (int argc, char const* argv[])
   bl_uword timebase_us = 10000000;
   bl_err err        = ssc_create (&p.sim, "", &timebase_us);
   if (err.bl) {
-    fprintf (stderr, "unable to create ssc: %s\n", bl_err_to_str (err));
-    return (int) err;
+    fprintf (stderr, "unable to create ssc: %s\n", bl_strerror (err));
+    return (int) err.bl;
   }
   p.startup = bl_timept32_get();
   err       = ssc_run_setup (p.sim);
   if (err.bl) {
-    fprintf (stderr, "unable to run ssc setup: %s\n", bl_err_to_str (err));
+    fprintf (stderr, "unable to run ssc setup: %s\n", bl_strerror (err));
     goto destroy;
   }
   printf(
@@ -126,8 +124,8 @@ int main (int argc, char const* argv[])
     "-------------------------------------------------------------\n"
     );
   bl_thread thr;
-  int thr_err = bl_thread_init (&thr, write_console, &p);
-  if (thr_err != 0) {
+  bl_err thr_err = bl_thread_init (&thr, write_console, &p);
+  if (thr_err.bl != 0) {
     fprintf (stderr, "unable to start console thread\n");
     goto teardown;
   }
@@ -148,6 +146,6 @@ teardown:
   ssc_run_teardown (p.sim);
 destroy:
   ssc_destroy (p.sim);
-  return (int) err;
+  return (int) err.bl;
 }
 /*---------------------------------------------------------------------------*/
