@@ -20,11 +20,11 @@
 #include <ssc/simulator/group_scheduler.h>
 
 /*----------------------------------------------------------------------------*/
-define_dynarray_types (gscheds, gsched)
-declare_dynarray_funcs (gscheds, gsched)
+bl_define_dynarray_types (gscheds, gsched)
+bl_declare_dynarray_funcs (gscheds, gsched)
 
-define_dynarray_types (gsched_cfgs, ssc_fiber_cfgs)
-declare_dynarray_funcs (gsched_cfgs, ssc_fiber_cfgs)
+bl_define_dynarray_types (gsched_cfgs, ssc_fiber_cfgs)
+bl_declare_dynarray_funcs (gsched_cfgs, ssc_fiber_cfgs)
 /*----------------------------------------------------------------------------*/
 enum {
   ssc_on_setup,
@@ -35,12 +35,12 @@ enum {
 /*----------------------------------------------------------------------------*/
 struct ssc {
   ssc_global          global;
-  alloc_tbl           alloc;
+  bl_alloc_tbl        alloc;
   ssc_simulation_var (lib);
   gscheds             groups;
   gsched_cfgs         fg_cfgs;
   bl_err              err;
-  atomic_uword        state;
+  bl_atomic_uword     state;
 };
 /*----------------------------------------------------------------------------*/
 bl_err ssc_api_add_fiber (ssc_handle h, ssc_fiber_cfg const* cfg)
@@ -50,7 +50,7 @@ bl_err ssc_api_add_fiber (ssc_handle h, ssc_fiber_cfg const* cfg)
     return sim->err;
   }
   ssc_fiber_cfgs* gcfg = nullptr;
-  uword fg_cfgs_size   = gsched_cfgs_size (&sim->fg_cfgs);
+  bl_uword fg_cfgs_size   = gsched_cfgs_size (&sim->fg_cfgs);
 
   if (cfg->id == fg_cfgs_size) {
     /*fiber added to new fiber group*/
@@ -117,10 +117,10 @@ static void ssc_run_manual_link_to_simulator (ssc* d)
 }
 /*----------------------------------------------------------------------------*/
 static void ssc_estimate_taskq_size(
-  ssc* sim, uword* regular, uword* delayed
+  ssc* sim, bl_uword* regular, bl_uword* delayed
   )
 {
-  uword fiber_count   = 0;
+  bl_uword fiber_count   = 0;
   ssc_fiber_cfgs *g = gsched_cfgs_beg (&sim->fg_cfgs);
   while (g < gsched_cfgs_end (&sim->fg_cfgs)) {
     fiber_count += ssc_fiber_cfgs_size (g);
@@ -160,7 +160,7 @@ SSC_SIM_EXPORT bl_err ssc_create(
     return bl_mkerr (bl_invalid);
   }
   /*allocation*/
-  alloc_tbl def_alloc = get_default_alloc();
+  bl_alloc_tbl def_alloc = bl_get_default_alloc();
   ssc* sim          = (ssc*) bl_alloc (&def_alloc, sizeof *sim);
   if (!sim) {
     log_error ("error when allocating ssc\n");
@@ -169,7 +169,7 @@ SSC_SIM_EXPORT bl_err ssc_create(
   memset (sim, 0, sizeof *sim);
   sim->alloc        = def_alloc;
   sim->global.alloc = &sim->alloc;
-  atomic_uword_store_rlx (&sim->state, ssc_on_setup);
+  bl_atomic_uword_store_rlx (&sim->state, ssc_on_setup);
 
   gscheds_init (&sim->groups, 0, &sim->alloc); /*no allocation*/
   gsched_cfgs_init (&sim->fg_cfgs, 0, &sim->alloc); /*no allocation*/
@@ -207,7 +207,7 @@ SSC_SIM_EXPORT bl_err ssc_create(
     log_error ("error when running \"ssc_sim_on_setup\":%u\n", err);
     goto destroy_cfgs;
   }
-  uword group_count = gsched_cfgs_size (&sim->fg_cfgs);
+  bl_uword group_count = gsched_cfgs_size (&sim->fg_cfgs);
   if (group_count == 0) {
     log_error ("no fibers created on \"ssc_sim_on_setup\"\n");
     err = bl_mkerr (bl_error);
@@ -220,9 +220,9 @@ SSC_SIM_EXPORT bl_err ssc_create(
   }
 
   /*init task queue*/
-  uword regular, delayed;
+  bl_uword regular, delayed;
   ssc_estimate_taskq_size (sim, &regular, &delayed);
-  err = taskq_init (&sim->global.tq, &sim->alloc, regular, delayed);
+  err =bl_taskq_init (&sim->global.tq, &sim->alloc, regular, delayed);
   if (err.bl) {
     log_error ("error creating task queue:%u\n", err);
     goto simulator_teardown;
@@ -231,7 +231,7 @@ SSC_SIM_EXPORT bl_err ssc_create(
   /*init fiber groups*/
   ssc_fiber_group_cfg group_cfg;
   ssc_fiber_group_cfg_init (&group_cfg); /*exposing cfg is TBD TODO*/
-  for (uword i = 0; i < group_count; ++i) {
+  for (bl_uword i = 0; i < group_count; ++i) {
     err = gscheds_grow (&sim->groups, 1, &sim->alloc);
     if (err.bl) {
       log_error ("error allocating fiber group:%u\n", err);
@@ -248,14 +248,14 @@ SSC_SIM_EXPORT bl_err ssc_create(
     }
   }
   /*ready to run fibers setup + main loop*/
-  atomic_uword_store (&sim->state, ssc_initialized, mo_release);
+  bl_atomic_uword_store (&sim->state, ssc_initialized, bl_mo_release);
   *instance_out = sim;
   return bl_mkok();
 
 destroy_fiber_groups:
   ssc_destroy_fiber_groups (sim);
 destroy_taskq:
-  taskq_destroy (sim->global.tq, &sim->alloc);
+ bl_taskq_destroy (sim->global.tq, &sim->alloc);
 simulator_teardown:
   ssc_simulation_on_teardown (&sim->lib, sim->global.sim_context);
 destroy_cfgs:
@@ -273,7 +273,7 @@ mem_dealloc:
 /*----------------------------------------------------------------------------*/
 SSC_SIM_EXPORT bl_err ssc_destroy (ssc* sim)
 {
-  uword state = atomic_uword_load_rlx (&sim->state);
+  bl_uword state = bl_atomic_uword_load_rlx (&sim->state);
   if (state == ssc_initialized) {
     ssc_run_setup (sim);
   }
@@ -284,7 +284,7 @@ SSC_SIM_EXPORT bl_err ssc_destroy (ssc* sim)
     return bl_mkerr (bl_preconditions);
   }
   ssc_destroy_fiber_groups (sim);
-  taskq_destroy (sim->global.tq, &sim->alloc);
+ bl_taskq_destroy (sim->global.tq, &sim->alloc);
   ssc_out_q_destroy (&sim->global.out_queue);
   ssc_destroy_fiber_group_cfgs (sim);
   ssc_simulation_unload (&sim->lib);
@@ -298,7 +298,7 @@ SSC_SIM_EXPORT bl_err ssc_run_setup (ssc* sim)
 {
   /*the global setup function is run on ssc_create, we need to ensure memory
     visibility*/
-  if (atomic_uword_load (&sim->state, mo_acquire) != ssc_initialized) {
+  if (bl_atomic_uword_load (&sim->state, bl_mo_acquire) != ssc_initialized) {
     return bl_mkerr (bl_preconditions);
   }
   bl_err err = bl_mkok();
@@ -312,7 +312,7 @@ SSC_SIM_EXPORT bl_err ssc_run_setup (ssc* sim)
     }
     ++g;
   }
-  atomic_uword_store_rlx (&sim->state, ssc_running);
+  bl_atomic_uword_store_rlx (&sim->state, ssc_running);
   return err;
 rollback:
   eg = gscheds_beg (&sim->groups);
@@ -325,7 +325,7 @@ rollback:
 /*----------------------------------------------------------------------------*/
 SSC_SIM_EXPORT bl_err ssc_run_teardown (ssc* sim)
 {
-  if (atomic_uword_load_rlx (&sim->state) != ssc_running) {
+  if (bl_atomic_uword_load_rlx (&sim->state) != ssc_running) {
     return bl_mkerr (bl_preconditions);
   }
   gsched *g = gscheds_beg (&sim->groups);
@@ -334,7 +334,7 @@ SSC_SIM_EXPORT bl_err ssc_run_teardown (ssc* sim)
     ++g;
   }
   ssc_simulation_on_teardown (&sim->lib, sim->global.sim_context);
-  atomic_uword_store_rlx (&sim->state, ssc_stopped);
+  bl_atomic_uword_store_rlx (&sim->state, ssc_stopped);
   return bl_mkok();
 }
 /*----------------------------------------------------------------------------*/
@@ -345,40 +345,40 @@ SSC_SIM_EXPORT void ssc_block (ssc* sim)
     ssc_in_q_block (&g->queue);
     ++g;
   }
-  taskq_block (sim->global.tq);
+ bl_taskq_block (sim->global.tq);
 }
 /*----------------------------------------------------------------------------*/
-SSC_SIM_EXPORT bl_err ssc_run_some (ssc* sim, u32 usec_timeout)
+SSC_SIM_EXPORT bl_err ssc_run_some (ssc* sim, bl_u32 usec_timeout)
 {
-  bl_assert (atomic_uword_load_rlx (&sim->state) == ssc_running);
-  return taskq_run_one (sim->global.tq, usec_timeout);
+  bl_assert (bl_atomic_uword_load_rlx (&sim->state) == ssc_running);
+  return bl_taskq_run_one (sim->global.tq, usec_timeout);
 }
 /*----------------------------------------------------------------------------*/
 SSC_SIM_EXPORT bl_err ssc_try_run_some (ssc* sim)
 {
-  bl_assert (atomic_uword_load_rlx (&sim->state) == ssc_running);
-  return taskq_try_run_one (sim->global.tq);
+  bl_assert (bl_atomic_uword_load_rlx (&sim->state) == ssc_running);
+  return bl_taskq_try_run_one (sim->global.tq);
 }
 /*----------------------------------------------------------------------------*/
-SSC_SIM_EXPORT u8* ssc_alloc_write_bytestream (ssc* sim, uword capacity)
+SSC_SIM_EXPORT bl_u8* ssc_alloc_write_bytestream (ssc* sim, bl_uword capacity)
 {
-  u8* bstream = in_bstream_alloc (capacity, &sim->alloc);
+  bl_u8* bstream = in_bstream_alloc (capacity, &sim->alloc);
   return bstream ? in_bstream_payload (bstream) : nullptr;
 }
 /*----------------------------------------------------------------------------*/
 SSC_SIM_EXPORT bl_err ssc_write(
-  ssc* sim, ssc_group_id q, u8* bytestream, u16 size
+  ssc* sim, ssc_group_id q, bl_u8* bytestream, bl_u16 size
   )
 {
   bl_err err     = bl_mkok();
-  u8* in_bstream = in_bstream_from_payload (bytestream);
+  bl_u8* in_bstream = in_bstream_from_payload (bytestream);
   bl_assert (in_bstream_pattern_validate (in_bstream)); /*big bug on the user side*/
 
   if (q >= gscheds_size (&sim->groups)) {
     err = bl_mkerr (bl_invalid);
     goto dealloc;
   }
-  *in_bstream_tstamp (in_bstream)       = bl_get_tstamp();
+  *in_bstream_timept32 (in_bstream)       = bl_timept32_get();
   *in_bstream_payload_size (in_bstream) = size;
 
   gsched* g = gscheds_at (&sim->groups, q);
@@ -401,10 +401,10 @@ dealloc:
 /*----------------------------------------------------------------------------*/
 SSC_SIM_EXPORT bl_err ssc_read(
   ssc*             sim,
-  uword*           d_consumed,
+  bl_uword*           d_consumed,
   ssc_output_data* d,
-  uword            d_capacity,
-  u32              timeout_us
+  bl_uword            d_capacity,
+  bl_u32              timeout_us
   )
 {
   return ssc_out_q_consume(

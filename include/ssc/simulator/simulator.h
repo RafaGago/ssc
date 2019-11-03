@@ -51,7 +51,7 @@ extern SSC_SIM_EXPORT
   timeout if there is nothing to do.
 ------------------------------------------------------------------------------*/
 extern SSC_SIM_EXPORT
-  bl_err ssc_run_some (ssc* sim, u32 usec_timeout);
+  bl_err ssc_run_some (ssc* sim, bl_u32 usec_timeout);
 /*------------------------------------------------------------------------------
   ssc_run_some: Executes some iterations of the simulation. It returns
   immediately if there is nothing to do.
@@ -71,7 +71,7 @@ extern SSC_SIM_EXPORT
    assume any alignment. */
 /*----------------------------------------------------------------------------*/
 extern SSC_SIM_EXPORT
-  u8* ssc_alloc_write_bytestream (ssc* sim, uword capacity);
+  bl_u8* ssc_alloc_write_bytestream (ssc* sim, bl_uword capacity);
 /*----------------------------------------------------------------------------*/
 /* ssc_write: Sends a message to a fiber group.
 
@@ -83,7 +83,7 @@ extern SSC_SIM_EXPORT
   tion (even with an error code). Don't access the pointer after this call. */
 /*----------------------------------------------------------------------------*/
 extern SSC_SIM_EXPORT
-  bl_err ssc_write (ssc* sim, ssc_group_id g, u8* bytestream, u16 size);
+  bl_err ssc_write (ssc* sim, ssc_group_id g, bl_u8* bytestream, bl_u16 size);
 /*----------------------------------------------------------------------------*/
 /* ssc_read: Reads messages from the simulation.
 
@@ -99,10 +99,10 @@ extern SSC_SIM_EXPORT
 extern SSC_SIM_EXPORT
   bl_err ssc_read(
     ssc*             sim,
-    uword*           d_consumed,
+    bl_uword*        d_consumed,
     ssc_output_data* d,
-    uword            d_capacity,
-    u32              timeout_us
+    bl_uword         d_capacity,
+    bl_u32           timeout_us
     );
 /*----------------------------------------------------------------------------*/
 /* ssc_dealloc_read_data: Deallocates __one__ message retrieved by ssc_read.

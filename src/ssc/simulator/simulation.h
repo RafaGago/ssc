@@ -8,7 +8,7 @@
 #include <ssc/types.h>
 /*----------------------------------------------------------------------------*/
 typedef void (*ssc_sim_dealloc_signature)(
-  void const* mem, uword size, ssc_group_id id, void* sim_context
+  void const* mem, bl_uword size, ssc_group_id id, void* sim_context
   );
 /*----------------------------------------------------------------------------*/
 #ifdef SSC_BEFORE_FIBER_CONTEXT_SWITCH_EVT

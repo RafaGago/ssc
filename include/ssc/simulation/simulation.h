@@ -35,7 +35,7 @@ extern SSC_EXPORT
 /*----------------------------------------------------------------------------*/
 extern SSC_EXPORT
   void ssc_sim_dealloc(
-    void const* mem, uword size, ssc_group_id id, void* sim_context
+    void const* mem, bl_uword size, ssc_group_id id, void* sim_context
     );
 /*----------------------------------------------------------------------------*/
 /* ssc_sim_before_fiber_context_switch: This is called from the simulator
@@ -78,20 +78,20 @@ static inline void ssc_yield (ssc_handle h);
     "wait_id" is a number that has to be the same on ssc_wake and ssc_wait. A
     "wait" just responds to "wakes" with the same "id".*/
 /*----------------------------------------------------------------------------*/
-static inline bool ssc_wait (ssc_handle h, uword_d2 wait_id, toffset us);
+static inline bool ssc_wait (ssc_handle h, bl_uword_d2 wait_id, bl_timeoft32 us);
 /*----------------------------------------------------------------------------*/
 /* ssc_wake: wakes one or more fibers blocked on ssc_wait.
 
    "wait_id" is a number that has to be the same on ssc_wake and ssc_wait. A
     "wait" just responds to "wakes" with the same "id".*/
 /*----------------------------------------------------------------------------*/
-static inline void ssc_wake (ssc_handle h, uword_d2 wait_id, uword_d2 count);
+static inline void ssc_wake (ssc_handle h, bl_uword_d2 wait_id, bl_uword_d2 count);
 /*----------------------------------------------------------------------------*/
 /* ssc_delay: Puts a fiber to sleep*/
 /*----------------------------------------------------------------------------*/
-static inline void ssc_delay (ssc_handle h, toffset us);
+static inline void ssc_delay (ssc_handle h, bl_timeoft32 us);
 /*----------------------------------------------------------------------------*/
-static inline tstamp ssc_get_timestamp (ssc_handle h);
+static inline bl_timept32 ssc_get_timestamp (ssc_handle h);
 /*----------------------------------------------------------------------------*/
 /* ssc_produce_static_output: Sends bytes to the output queue (retrieved by
     ssc_read).
@@ -99,7 +99,7 @@ static inline tstamp ssc_get_timestamp (ssc_handle h);
     The memory passed to this function is static and doesn't need deallocation.
 */
 /*----------------------------------------------------------------------------*/
-static inline void ssc_produce_static_output (ssc_handle h, memr16 o);
+static inline void ssc_produce_static_output (ssc_handle h, bl_memr16 o);
 /*----------------------------------------------------------------------------*/
 /* ssc_produce_dynamic_output: Sends bytes to the output queue (retrieved by
     ssc_read).
@@ -107,7 +107,7 @@ static inline void ssc_produce_static_output (ssc_handle h, memr16 o);
     The memory passed to this function is dynamic and will be deallocated by
     ssc_sim_dealloc(...).*/
 /*----------------------------------------------------------------------------*/
-static inline void ssc_produce_dynamic_output (ssc_handle h, memr16 o);
+static inline void ssc_produce_dynamic_output (ssc_handle h, bl_memr16 o);
 /*----------------------------------------------------------------------------*/
 /* ssc_produce_error: Sends an error code to the output queue (retrieved by
     ssc_read).*/
@@ -123,7 +123,7 @@ static inline void ssc_produce_error(
 */
 /*----------------------------------------------------------------------------*/
 static inline void ssc_produce_static_string(
-  ssc_handle h, char const* str, uword size_incl_trail_null
+  ssc_handle h, char const* str, bl_uword size_incl_trail_null
   );
 /*----------------------------------------------------------------------------*/
 /* ssc_produce_dynamic_string: Sends a string to the output queue (retrieved by
@@ -133,24 +133,24 @@ static inline void ssc_produce_static_string(
     ssc_sim_dealloc(...).*/
 /*----------------------------------------------------------------------------*/
 static inline void ssc_produce_dynamic_string(
-  ssc_handle h, char const* str, uword size_incl_trail_null
+  ssc_handle h, char const* str, bl_uword size_incl_trail_null
   );
 /*----------------------------------------------------------------------------*/
 /*ssc_peek_input_head: peeks the input queue blocking as long as it's necessary
     until data is available. The input queue head isn't consumed. */
 /*----------------------------------------------------------------------------*/
-static inline memr16 ssc_peek_input_head (ssc_handle h);
+static inline bl_memr16 ssc_peek_input_head (ssc_handle h);
 /*----------------------------------------------------------------------------*/
 /*ssc_timed_peek_input_head: peeks the input queue blocking as until the timeout
     expires. The input queue head isn't consumed.. If "us" == 0 the call is
     non-blocking. */
 /*----------------------------------------------------------------------------*/
-static inline memr16 ssc_timed_peek_input_head (ssc_handle h, toffset us);
+static inline bl_memr16 ssc_timed_peek_input_head (ssc_handle h, bl_timeoft32 us);
 /*----------------------------------------------------------------------------*/
 /*ssc_try_peek_input_head: peeks the input queue without blocking. The input
     queue head isn't consumed. */
 /*----------------------------------------------------------------------------*/
-static inline memr16 ssc_try_peek_input_head (ssc_handle h);
+static inline bl_memr16 ssc_try_peek_input_head (ssc_handle h);
 /*----------------------------------------------------------------------------*/
 /*ssc_drop_input_head: Drops (consumes) the input queue head without reading
     it.*/
@@ -178,24 +178,24 @@ static inline void ssc_drop_all_input (ssc_handle h);
   bytes on the "mask" bytestream are ignored.
 */
 /*----------------------------------------------------------------------------*/
-static inline memr16 ssc_peek_input_head_match_mask(
-  ssc_handle h, memr16 match, memr16 mask
+static inline bl_memr16 ssc_peek_input_head_match_mask(
+  ssc_handle h, bl_memr16 match, bl_memr16 mask
   );
 /*----------------------------------------------------------------------------*/
-static inline memr16 ssc_timed_peek_input_head_match_mask(
-  ssc_handle h, memr16 match, memr16 mask, toffset us
+static inline bl_memr16 ssc_timed_peek_input_head_match_mask(
+  ssc_handle h, bl_memr16 match, bl_memr16 mask, bl_timeoft32 us
   );
 /*----------------------------------------------------------------------------*/
-static inline memr16 ssc_peek_input_head_match (ssc_handle h, memr16 match)
+static inline bl_memr16 ssc_peek_input_head_match (ssc_handle h, bl_memr16 match)
 {
-  return ssc_peek_input_head_match_mask (h, match, memr16_null());
+  return ssc_peek_input_head_match_mask (h, match, bl_memr16_null());
 }
 /*----------------------------------------------------------------------------*/
-static inline memr16 ssc_timed_peek_input_head_match(
-  ssc_handle h, memr16 match, toffset us
+static inline bl_memr16 ssc_timed_peek_input_head_match(
+  ssc_handle h, bl_memr16 match, bl_timeoft32 us
   )
 {
-  return ssc_timed_peek_input_head_match_mask (h, match, memr16_null(), us);
+  return ssc_timed_peek_input_head_match_mask (h, match, bl_memr16_null(), us);
 }
 /*----------------------------------------------------------------------------*/
 /*ssc_fiber_get_run_cfg: Gets the fiber runtime parameters*/
@@ -245,29 +245,29 @@ static inline bl_err ssc_set_fiber_as_real_time (ssc_handle h)
 /* ssc_sem: Simple semaphore built with "ssc_wait" and "ssc_wake". */
 /*----------------------------------------------------------------------------*/
 typedef struct ssc_sem {
-  word_d2  count;
-  uword_d2 id;
+  bl_word_d2  count;
+  bl_uword_d2 id;
 }
 ssc_sem;
 /*----------------------------------------------------------------------------*/
-static inline void ssc_sem_init (ssc_sem* s, uword_d2 id)
+static inline void ssc_sem_init (ssc_sem* s, bl_uword_d2 id)
 {
   s->count = 0;
   s->id    = id;
 }
 /*----------------------------------------------------------------------------*/
-static inline void ssc_sem_wake (ssc_sem* s, ssc_handle h, uword_d2 count)
+static inline void ssc_sem_wake (ssc_sem* s, ssc_handle h, bl_uword_d2 count)
 {
   if (s->count < 1) {
     ssc_wake (h, s->id, count);
   }
-  bl_assert (s->count < itype_max (word_d2));
+  bl_assert (s->count < bl_itype_max (bl_word_d2));
   ++s->count;
 }
 /*----------------------------------------------------------------------------*/
-static inline bool ssc_sem_wait (ssc_sem* s, ssc_handle h, toffset us)
+static inline bool ssc_sem_wait (ssc_sem* s, ssc_handle h, bl_timeoft32 us)
 {
-  bl_assert (s->count > itype_min (word_d2));
+  bl_assert (s->count > bl_itype_min (bl_word_d2));
   --s->count;
   bool unexpired = true;
   if (s->count < 0) {

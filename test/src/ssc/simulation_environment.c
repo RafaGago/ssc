@@ -11,7 +11,7 @@ bl_err ssc_sim_on_setup(
 {
   sim_env* env             = passed_data;
   ssc_fiber_cfg const* cfg = env->cfg;
-  for (uword i = 0; i < env->cfg_count; ++i) {
+  for (bl_uword i = 0; i < env->cfg_count; ++i) {
     bl_err err = ssc_add_fiber (h, cfg);
     if (err.bl) {
       return err;
@@ -29,7 +29,7 @@ void ssc_sim_on_teardown (void* sim_context)
 }
 /*----------------------------------------------------------------------------*/
 void ssc_sim_dealloc(
-  void const* mem, uword size, ssc_group_id id, void* sim_context
+  void const* mem, bl_uword size, ssc_group_id id, void* sim_context
   )
 {
   sim_env* env = sim_context;

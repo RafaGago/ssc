@@ -15,29 +15,29 @@
   sleeping the thread*/
 /*---------------------------------------------------------------------------*/
 typedef struct sim_dealloc_data {
-  uword          count;
-  void const*    mem;
-  uword          size;
+  bl_uword     count;
+  void const*  mem;
+  bl_uword     size;
   ssc_group_id id;
 }
 sim_dealloc_data;
 /*---------------------------------------------------------------------------*/
 typedef struct basic_tests_ctx {
   ssc*             sim;
-  uword            fsetup_count;
-  uword            fteardown_count;
-  uword            teardown_count;
+  bl_uword         fsetup_count;
+  bl_uword         fteardown_count;
+  bl_uword         teardown_count;
   sim_dealloc_data dealloc;
-  toffset          tstamp_diff;
+  bl_timeoft32       bl_timept32_diff;
 }
 basic_tests_ctx;
 /*---------------------------------------------------------------------------*/
 /*TRANSLATION UNIT GLOBALS*/
 /*---------------------------------------------------------------------------*/
-static const u8    fiber_match           = 0xdd;
-static const u8    fiber_resp            = 0xee;
-static const uword queue_timeout_us      = 1000;
-static const uword queue_timeout_long_us = 150000;
+static const bl_u8    fiber_match           = 0xdd;
+static const bl_u8    fiber_resp            = 0xee;
+static const bl_uword queue_timeout_us      = 1000;
+static const bl_uword queue_timeout_long_us = 150000;
 /*---------------------------------------------------------------------------*/
 static basic_tests_ctx g_ctx;
 static sim_env         g_env;
@@ -46,7 +46,7 @@ static sim_env         g_env;
 /*---------------------------------------------------------------------------*/
 static bl_err test_fiber_setup (void* fiber_context, void* sim_context)
 {
-  sim_env* env         = (sim_env*) sim_context;
+  sim_env* env = (sim_env*) sim_context;
   basic_tests_ctx* ctx = (basic_tests_ctx*) env->ctx;
   ++ctx->fsetup_count;
   assert_true (sim_context == (void*) &g_env);
@@ -71,15 +71,15 @@ static void fiber_to_test_the_queue(
   assert_true (sim_context == (void*) &g_env);
   assert_true (fiber_context == (void*) &g_ctx);
 
-  memr16 match = memr16_rv ((void*) &fiber_match, 1);
+  bl_memr16 match = bl_memr16_rv ((void*) &fiber_match, 1);
   while (1) {
-    memr16 in = ssc_peek_input_head_match (h, match);
-    assert_true (!memr16_is_null (in));
-    assert_true (memr16_size (in) == 1);
-    assert_true (*memr16_beg_as (in, u8) == fiber_match);
+    bl_memr16 in = ssc_peek_input_head_match (h, match);
+    assert_true (!bl_memr16_is_null (in));
+    assert_true (bl_memr16_size (in) == 1);
+    assert_true (*bl_memr16_beg_as (in, bl_u8) == fiber_match);
     ssc_drop_input_head (h);
     /*this should be "static_output" but I want to test the dealloc func*/
-    ssc_produce_dynamic_output (h, memr16_rv ((void*) &fiber_resp, 1));
+    ssc_produce_dynamic_output (h, bl_memr16_rv ((void*) &fiber_resp, 1));
   }
 }
 /*---------------------------------------------------------------------------*/
@@ -90,16 +90,16 @@ static void fiber_to_test_queue_timeout(
   assert_true (sim_context == (void*) &g_env);
   assert_true (fiber_context == (void*) &g_ctx);
 
-  memr16 match = memr16_rv ((void*) &fiber_match, 1);
-  tstamp start = ssc_get_timestamp (h);
-  memr16 in = ssc_timed_peek_input_head_match(
+  bl_memr16 match = bl_memr16_rv ((void*) &fiber_match, 1);
+  bl_timept32 start = ssc_get_timestamp (h);
+  bl_memr16 in = ssc_timed_peek_input_head_match(
     h, match, queue_timeout_us
     );
-  tstamp end  = ssc_get_timestamp (h);
-  assert_true (bl_tstamp_to_usec (end - start) >= queue_timeout_us);
-  assert_true (memr16_is_null (in));
+  bl_timept32 end  = ssc_get_timestamp (h);
+  assert_true (bl_timept32_to_usec (end - start) >= queue_timeout_us);
+  assert_true (bl_memr16_is_null (in));
   /*this should be "static_output" but I want to test the dealloc func*/
-  ssc_produce_dynamic_output (h, memr16_rv ((void*) &fiber_resp, 1));
+  ssc_produce_dynamic_output (h, bl_memr16_rv ((void*) &fiber_resp, 1));
 }
 /*---------------------------------------------------------------------------*/
 static void fiber_to_test_queue_timeout_cancellation(
@@ -109,13 +109,13 @@ static void fiber_to_test_queue_timeout_cancellation(
   assert_true (sim_context == (void*) &g_env);
   assert_true (fiber_context == (void*) &g_ctx);
 
-  memr16 match = memr16_rv ((void*) &fiber_match, 1);
-  memr16 in    = ssc_timed_peek_input_head_match(
+  bl_memr16 match = bl_memr16_rv ((void*) &fiber_match, 1);
+  bl_memr16 in    = ssc_timed_peek_input_head_match(
     h, match, queue_timeout_long_us
     );
-  assert_true (!memr16_is_null (in));
+  assert_true (!bl_memr16_is_null (in));
   ssc_drop_input_head (h);
-  ssc_produce_dynamic_output (h, memr16_rv ((void*) &fiber_resp, 1));
+  ssc_produce_dynamic_output (h, bl_memr16_rv ((void*) &fiber_resp, 1));
   /*this should block on the queue forever, we are trying to see if this wakes
     up, so we block on the queue again indefinitely, this should cause the
     internals to be in a "blocked on queue" state*/
@@ -125,7 +125,7 @@ static void fiber_to_test_queue_timeout_cancellation(
     Waking up can trigger assertions, as "ssc_peek_input_head_match" can't
     return a null. This is a bug regression.
     */
-  ssc_produce_dynamic_output (h, memr16_rv ((void*) &fiber_resp, 1));
+  ssc_produce_dynamic_output (h, bl_memr16_rv ((void*) &fiber_resp, 1));
 }
 /*---------------------------------------------------------------------------*/
 static void fiber_to_test_delay(
@@ -135,12 +135,12 @@ static void fiber_to_test_delay(
   assert_true (sim_context == (void*) &g_env);
   assert_true (fiber_context == (void*) &g_ctx);
 
-  tstamp start = ssc_get_timestamp (h);
+  bl_timept32 start = ssc_get_timestamp (h);
   /*this will just increment the fiber time counter without context-switching*/
   ssc_delay (h, queue_timeout_us);
-  tstamp end  = ssc_get_timestamp (h);
-  assert_true (bl_tstamp_to_usec (end - start) >= queue_timeout_us);
-  ssc_produce_dynamic_output (h, memr16_rv ((void*) &fiber_resp, 1));
+  bl_timept32 end  = ssc_get_timestamp (h);
+  assert_true (bl_timept32_to_usec (end - start) >= queue_timeout_us);
+  ssc_produce_dynamic_output (h, bl_memr16_rv ((void*) &fiber_resp, 1));
 }
 /*---------------------------------------------------------------------------*/
 static void fiber_to_test_wait_timeout(
@@ -150,12 +150,12 @@ static void fiber_to_test_wait_timeout(
   assert_true (sim_context == (void*) &g_env);
   assert_true (fiber_context == (void*) &g_ctx);
 
-  tstamp start = ssc_get_timestamp (h);
+  bl_timept32 start = ssc_get_timestamp (h);
   bool unexpired = ssc_wait (h, 1, queue_timeout_us);
   assert_true (!unexpired);
-  tstamp end  = ssc_get_timestamp (h);
-  assert_true (bl_tstamp_to_usec (end - start) >= queue_timeout_us);
-  ssc_produce_dynamic_output (h, memr16_rv ((void*) &fiber_resp, 1));
+  bl_timept32 end  = ssc_get_timestamp (h);
+  assert_true (bl_timept32_to_usec (end - start) >= queue_timeout_us);
+  ssc_produce_dynamic_output (h, bl_memr16_rv ((void*) &fiber_resp, 1));
 }
 /*---------------------------------------------------------------------------*/
 static void sim_on_teardown_test (void* sim_context)
@@ -166,7 +166,7 @@ static void sim_on_teardown_test (void* sim_context)
 }
 /*----------------------------------------------------------------------------*/
 static void sim_dealloc_test(
-  void const* mem, uword size, ssc_group_id id, void* sim_context
+  void const* mem, bl_uword size, ssc_group_id id, void* sim_context
   )
 {
   assert_true (sim_context == (void*) &g_env);
@@ -180,7 +180,7 @@ static void sim_dealloc_test(
 /*Tests*/
 /*---------------------------------------------------------------------------*/
 static void generic_test_setup(
-  void **state, ssc_fiber_cfg* fibers, uword fibers_count
+  void **state, ssc_fiber_cfg* fibers, bl_uword fibers_count
   )
 {
   memset (&g_ctx, 0, sizeof g_ctx);
@@ -205,7 +205,7 @@ static int queue_test_setup (void **state)
   fibers[0] = ssc_fiber_cfg_rv(
     0, fiber_to_test_the_queue, test_fiber_setup, test_fiber_teardown, &g_ctx
     );
-  generic_test_setup (state, fibers, arr_elems (fibers));
+  generic_test_setup (state, fibers, bl_arr_elems (fibers));
   return 0;
 }
 /*---------------------------------------------------------------------------*/
@@ -219,7 +219,7 @@ static int queue_timeout_test_setup (void **state)
     test_fiber_teardown,
      &g_ctx
     );
-  generic_test_setup (state, fibers, arr_elems (fibers));
+  generic_test_setup (state, fibers, bl_arr_elems (fibers));
   return 0;
 }
 /*---------------------------------------------------------------------------*/
@@ -233,7 +233,7 @@ static int queue_timeout_test_timeout_cancellation_setup (void **state)
     test_fiber_teardown,
     &g_ctx
     );
-  generic_test_setup (state, fibers, arr_elems (fibers));
+  generic_test_setup (state, fibers, bl_arr_elems (fibers));
   return 0;
 }
 /*---------------------------------------------------------------------------*/
@@ -243,7 +243,7 @@ static int delay_test_setup (void **state)
   fibers[0] = ssc_fiber_cfg_rv(
     0, fiber_to_test_delay, test_fiber_setup, test_fiber_teardown, &g_ctx
     );
-  generic_test_setup (state, fibers, arr_elems (fibers));
+  generic_test_setup (state, fibers, bl_arr_elems (fibers));
   return 0;
 }
 /*---------------------------------------------------------------------------*/
@@ -264,7 +264,7 @@ static void queue_no_match_test (void **state)
   assert_true (!err.bl);
   assert_true (ctx->fsetup_count == 1);
 
-  uword           count;
+  bl_uword           count;
   ssc_output_data read;
 
   err = ssc_try_run_some (ctx->sim);
@@ -272,7 +272,7 @@ static void queue_no_match_test (void **state)
   err = ssc_read (ctx->sim, &count, &read, 1, 0);
   assert_true (err.bl == bl_timeout);
 
-  for (uword i = 0; i < 5; ++i) {
+  for (bl_uword i = 0; i < 5; ++i) {
     err = ssc_try_run_some (ctx->sim);
     assert_true (err.bl == bl_nothing_to_do);
     err = ssc_read (ctx->sim, &count, &read, 1, 0);
@@ -293,13 +293,13 @@ static void queue_match_test (void **state)
 
   err = ssc_try_run_some (ctx->sim);
   assert_true (!err.bl);
-  uword count;
+  bl_uword count;
   ssc_output_data read;
   err = ssc_read (ctx->sim, &count, &read, 1, 0);
   assert_true (err.bl == bl_timeout);
 
   /*writing non matching data*/
-  u8* send = ssc_alloc_write_bytestream (ctx->sim, 1);
+  bl_u8* send = ssc_alloc_write_bytestream (ctx->sim, 1);
   assert_non_null (send);
 
   *send = fiber_match - 1;
@@ -335,14 +335,14 @@ static void queue_match_test (void **state)
   assert_true (!err.bl);
   assert_true (read.type == ssc_type_dynamic_bytes);
   assert_true (read.gid == 0);
-  memr16 rd = ssc_output_read_as_bytes (&read);
-  assert_true (!memr16_is_null (rd));
-  assert_true (memr16_size (rd) == 1);
-  assert_true (*memr16_beg_as (rd, u8) == fiber_resp);
+  bl_memr16 rd = ssc_output_read_as_bytes (&read);
+  assert_true (!bl_memr16_is_null (rd));
+  assert_true (bl_memr16_size (rd) == 1);
+  assert_true (*bl_memr16_beg_as (rd, bl_u8) == fiber_resp);
 
   ssc_dealloc_read_data (ctx->sim, &read);
   assert_true (ctx->dealloc.count == 1);
-  assert_true (ctx->dealloc.mem == memr16_beg (rd));
+  assert_true (ctx->dealloc.mem == bl_memr16_beg (rd));
   assert_true (ctx->dealloc.size == 1);
   assert_true (ctx->dealloc.id == 0);
 
@@ -359,7 +359,7 @@ static void answer_after_blocking_timeout_test (void **state)
   assert_true (!err.bl);
   assert_true (ctx->fsetup_count == 1);
 
-  uword count;
+  bl_uword count;
   ssc_output_data read;
   err = ssc_run_some (ctx->sim, queue_timeout_us * 20);
   assert_true (!err.bl);
@@ -374,10 +374,10 @@ static void answer_after_blocking_timeout_test (void **state)
   assert_true (!err.bl);
   assert_true (read.type == ssc_type_dynamic_bytes);
   assert_true (read.gid == 0);
-  memr16 rd = ssc_output_read_as_bytes (&read);
-  assert_true (!memr16_is_null (rd));
-  assert_true (memr16_size (rd) == 1);
-  assert_true (*memr16_beg_as (rd, u8) == fiber_resp);
+  bl_memr16 rd = ssc_output_read_as_bytes (&read);
+  assert_true (!bl_memr16_is_null (rd));
+  assert_true (bl_memr16_size (rd) == 1);
+  assert_true (*bl_memr16_beg_as (rd, bl_u8) == fiber_resp);
 
   err = ssc_run_teardown (ctx->sim);
   assert_true (!err.bl);
@@ -391,14 +391,14 @@ static void timeout_correctly_cancelled_test (void **state)
   assert_true (!err.bl);
   assert_true (ctx->fsetup_count == 1);
 
-  uword count;
+  bl_uword count;
   ssc_output_data read;
 
   err = ssc_try_run_some (ctx->sim);
   assert_true (!err.bl); /*fiber blocked on queue with timeout active*/
 
   /*writing matching data*/
-  u8* send = ssc_alloc_write_bytestream (ctx->sim, 1);
+  bl_u8* send = ssc_alloc_write_bytestream (ctx->sim, 1);
   assert_non_null (send);
 
   *send = fiber_match;
@@ -414,22 +414,22 @@ static void timeout_correctly_cancelled_test (void **state)
   assert_true (!err.bl);
   assert_true (read.type == ssc_type_dynamic_bytes);
   assert_true (read.gid == 0);
-  memr16 rd = ssc_output_read_as_bytes (&read);
-  assert_true (!memr16_is_null (rd));
-  assert_true (memr16_size (rd) == 1);
-  assert_true (*memr16_beg_as (rd, u8) == fiber_resp);
+  bl_memr16 rd = ssc_output_read_as_bytes (&read);
+  assert_true (!bl_memr16_is_null (rd));
+  assert_true (bl_memr16_size (rd) == 1);
+  assert_true (*bl_memr16_beg_as (rd, bl_u8) == fiber_resp);
 
   /*checking that the timeout is correctly cancelled, the assertion on the fiber
     shouldn't trigger*/
-  tstamp deadline = bl_get_tstamp() +
-    (3 * bl_usec_to_tstamp (queue_timeout_long_us));
+  bl_timept32 bl_deadline = bl_timept32_get() +
+    (3 * bl_usec_to_timept32 (queue_timeout_long_us));
 
   do {
     err = ssc_run_some (ctx->sim, 10000);
     err = ssc_read (ctx->sim, &count, &read, 1, 0);
     assert_true (count == 0);
   }
-  while (tstamp_get_diff (bl_get_tstamp(), deadline) <= 0);
+  while (bl_timept32_get_diff (bl_timept32_get(), bl_deadline) <= 0);
 
   /*Success*/
   err = ssc_run_teardown (ctx->sim);
@@ -444,7 +444,7 @@ static void delay_test (void **state)
   assert_true (!err.bl);
   assert_true (ctx->fsetup_count == 1);
 
-  uword count;
+  bl_uword count;
   ssc_output_data read;
 
   err = ssc_run_some (ctx->sim, queue_timeout_us * 20);
@@ -458,10 +458,10 @@ static void delay_test (void **state)
   assert_true (!err.bl);
   assert_true (read.type == ssc_type_dynamic_bytes);
   assert_true (read.gid == 0);
-  memr16 rd = ssc_output_read_as_bytes (&read);
-  assert_true (!memr16_is_null (rd));
-  assert_true (memr16_size (rd) == 1);
-  assert_true (*memr16_beg_as (rd, u8) == fiber_resp);
+  bl_memr16 rd = ssc_output_read_as_bytes (&read);
+  assert_true (!bl_memr16_is_null (rd));
+  assert_true (bl_memr16_size (rd) == 1);
+  assert_true (*bl_memr16_beg_as (rd, bl_u8) == fiber_resp);
 
   err = ssc_run_teardown (ctx->sim);
   assert_true (!err.bl);

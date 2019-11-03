@@ -9,20 +9,19 @@ static define_bl_err_to_str()
 
 /*---------------------------------------------------------------------------*/
 typedef struct program {
-  ssc*   sim;
-  int    running;
-  tstamp startup;
-  char   rcv[512];
-  char   send[512];
+  ssc*        sim;
+  int         running;
+  bl_timept32 startup;
+  char        rcv[512];
+  char        send[512];
 }
 program;
 /*---------------------------------------------------------------------------*/
-void print_time (program* p, tstamp t)
+void print_time (program* p, bl_timept32 t)
 {
-  toffset toff = bl_tstamp_to_usec (t - p->startup);
-  toffset sec  = toff / usec_in_sec;
-  toffset usec = toff % usec_in_sec;
-  /*TODO: provide tstamp formatters in time.h*/
+  bl_timeoft32 toff = bl_timept32_to_usec (t - p->startup);
+  bl_timeoft32 sec  = toff / usec_in_sec;
+  bl_timeoft32 usec = toff % usec_in_sec;
   printf ("[%05u.%06u]", sec, usec);
 }
 /*---------------------------------------------------------------------------*/
@@ -31,9 +30,9 @@ void process_read_message (program* p, ssc_output_data* od)
   print_time (p, od->time);
   switch ((od->type & ~ssc_type_is_dynamic_mask)) {
   case ssc_type_bytes: {
-    memr16 data = ssc_output_read_as_bytes (od);
+    bl_memr16 data = ssc_output_read_as_bytes (od);
     int ret = bl_bytes_to_hex_string(
-      p->rcv, arr_elems (p->rcv), memr16_beg (data), memr16_size (data)
+      p->rcv, bl_arr_elems (p->rcv), bl_memr16_beg (data), bl_memr16_size (data)
       );
     if (-1 == ret) {
       fprintf (stderr, "<- message too big\n");
@@ -42,7 +41,7 @@ void process_read_message (program* p, ssc_output_data* od)
     break;
   }
   case ssc_type_string: {
-    u16 strlength;
+    bl_u16 strlength;
     char const* str = ssc_output_read_as_string (od, &strlength);
     printf ("<- [dyn:%d] %s\n", ssc_output_is_dynamic (od), str);
     break;
@@ -63,7 +62,7 @@ int write_console (void* context)
   program* p = (program*) context;
   size_t size;
   while (p->running) {
-    char* line = fgets (&p->send, arr_elems (p->send), stdin);
+    char* line = fgets (&p->send, bl_arr_elems (p->send), stdin);
     if (!line) {
       fprintf (stderr, "fgets failed\n");
       continue;
@@ -72,7 +71,7 @@ int write_console (void* context)
     if (lf_ptr) {
       *lf_ptr = 0;
     }
-    uword size = strlen (line);
+    bl_uword size = strlen (line);
     if (size == 0) {
       continue;
     }
@@ -80,20 +79,20 @@ int write_console (void* context)
       p->running = 0;
       return 0;
     }
-    uword bytes = (size / 2) + (size & 1);
-    u8* mem = ssc_alloc_write_bytestream (p->sim, bytes);
+    bl_uword bytes = (size / 2) + (size & 1);
+    bl_u8* mem = ssc_alloc_write_bytestream (p->sim, bytes);
     if (!mem) {
       fprintf (stderr, "ssc_alloc_write_bytestream failed!\n");
       continue;
     }
     /*printf ("strlen: %u, bytes: %u, line: %s\n", size, bytes, line);*/
-    word ret = bl_hex_string_to_bytes (mem, bytes, line);
+    bl_word ret = bl_hex_string_to_bytes (mem, bytes, line);
     if (ret < 0) {
       fprintf (stderr, "invalid hex string\n");
       continue;
     }
-    print_time (p, bl_get_tstamp());
-    bl_err err = ssc_write (p->sim, 0, mem, (u16) ret);
+    print_time (p, bl_timept32_get());
+    bl_err err = ssc_write (p->sim, 0, mem, (bl_u16) ret);
     if (!err.bl) {
       printf ("-> %s\n", line);
     }
@@ -108,13 +107,13 @@ int main (int argc, char const* argv[])
 {
   struct program p;
   p.running         = 1;
-  uword timebase_us = 10000000;
+  bl_uword timebase_us = 10000000;
   bl_err err        = ssc_create (&p.sim, "", &timebase_us);
   if (err.bl) {
     fprintf (stderr, "unable to create ssc: %s\n", bl_err_to_str (err));
     return (int) err;
   }
-  p.startup = bl_get_tstamp();
+  p.startup = bl_timept32_get();
   err       = ssc_run_setup (p.sim);
   if (err.bl) {
     fprintf (stderr, "unable to run ssc setup: %s\n", bl_err_to_str (err));
@@ -138,9 +137,9 @@ int main (int argc, char const* argv[])
     if (err.bl && err.bl != bl_timeout) {
       /*TODO*/
     }
-    uword read_msgs;
-    (void) ssc_read (p.sim, &read_msgs, od, arr_elems (od), 0);
-    for (uword i = 0; i < read_msgs; ++i) {
+    bl_uword read_msgs;
+    (void) ssc_read (p.sim, &read_msgs, od, bl_arr_elems (od), 0);
+    for (bl_uword i = 0; i < read_msgs; ++i) {
       process_read_message (&p, od + i);
       ssc_dealloc_read_data (p.sim, od + i);
     }

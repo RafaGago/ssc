@@ -14,7 +14,8 @@ project(
         ]
     )
 
-base_library      = subproject ('base_library')
+base_library = subproject ('base_library')
+
 base_lib          = base_library.get_variable ('base_lib')
 nonblock_lib      = base_library.get_variable ('nonblock_lib')
 taskqueue_lib     = base_library.get_variable ('taskqueue_lib')

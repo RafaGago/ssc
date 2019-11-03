@@ -13,7 +13,10 @@ void ssc_out_memory_dealloc(
   if (ssc_output_is_dynamic (d)) {
     bl_assert (!ssc_output_is_error (d));
     f(
-      memr16_beg (d->data), memr16_size (d->data), d->gid, global_sim_context
+      bl_memr16_beg (d->data),
+      bl_memr16_size (d->data),
+      d->gid,
+      global_sim_context
       );
   }
 }

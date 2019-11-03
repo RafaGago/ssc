@@ -16,14 +16,14 @@
 /*---------------------------------------------------------------------------*/
 typedef struct ahot_tests_ctx {
   ssc* sim;
-  tstamp t[16];
-  uword  fiber_count;
+  bl_timept32 t[16];
+  bl_uword  fiber_count;
 }
 ahot_tests_ctx;
 /*---------------------------------------------------------------------------*/
 /*TRANSLATION UNIT GLOBALS*/
 /*---------------------------------------------------------------------------*/
-static const u8 fiber1_resp = 0xdd;
+static const bl_u8 fiber1_resp = 0xdd;
 /*---------------------------------------------------------------------------*/
 static ahot_tests_ctx g_ctx;
 static sim_env        g_env;
@@ -36,14 +36,14 @@ static void sim_on_teardown_test (void* sim_context)
 }
 /*----------------------------------------------------------------------------*/
 static void sim_dealloc_test(
-  void const* mem, uword size, ssc_group_id id, void* sim_context
+  void const* mem, bl_uword size, ssc_group_id id, void* sim_context
   )
 {
   /*tested on basic_test*/
 }
 /*---------------------------------------------------------------------------*/
 static void generic_test_setup(
-  void **state, ssc_fiber_cfg* fibers, uword fibers_count
+  void **state, ssc_fiber_cfg* fibers, bl_uword fibers_count
   )
 {
   memset (&g_ctx, 0, sizeof g_ctx);
@@ -71,25 +71,25 @@ static int test_teardown (void **state)
 }
 /*---------------------------------------------------------------------------*/
 static inline void check_has_response(
-    ahot_tests_ctx* ctx, u8 exp, tstamp time, toffset timeout
+    ahot_tests_ctx* ctx, bl_u8 exp, bl_timept32 time, bl_timeoft32 timeout
     )
 {
-  uword count;
+  bl_uword count;
   ssc_output_data read;
   bl_err err = ssc_read (ctx->sim, &count, &read, 1, timeout);
   assert_true (!err.bl);
   assert_true (read.type == ssc_type_static_bytes);
   assert_true (read.gid == 0);
   assert_true (read.time == time);
-  memr16 rd = ssc_output_read_as_bytes (&read);
-  assert_true (!memr16_is_null (rd));
-  assert_true (memr16_size (rd) == 1);
-  assert_true (*memr16_beg_as (rd, u8) == exp);
+  bl_memr16 rd = ssc_output_read_as_bytes (&read);
+  assert_true (!bl_memr16_is_null (rd));
+  assert_true (bl_memr16_size (rd) == 1);
+  assert_true (*bl_memr16_beg_as (rd, bl_u8) == exp);
   ssc_dealloc_read_data (ctx->sim, &read);
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-static const uword future_wake_delay_us = 6000; /*6ms*/
+static const bl_uword future_wake_delay_us = 6000; /*6ms*/
 /*---------------------------------------------------------------------------*/
 static void future_wake_fiber1(
   ssc_handle h, void* fiber_context, void* sim_context
@@ -142,7 +142,7 @@ static int future_wake_test_setup (void **state)
   fibers[1] = ssc_fiber_cfg_rv(
     0, future_wake_fiber2, nullptr, nullptr, nullptr
     );
-  generic_test_setup (state, fibers, arr_elems (fibers));
+  generic_test_setup (state, fibers, bl_arr_elems (fibers));
   return 0;
 }
 /*---------------------------------------------------------------------------*/
@@ -158,18 +158,18 @@ static void future_wake_test (void **state)
   }
   while (ctx->fiber_count > 0);
 
-  assert_true (tstamp_get_diff (ctx->t[0], ctx->t[1]) < 0);
-  assert_true (tstamp_get_diff (ctx->t[2], ctx->t[3]) < 0);
+  assert_true (bl_timept32_get_diff (ctx->t[0], ctx->t[1]) < 0);
+  assert_true (bl_timept32_get_diff (ctx->t[2], ctx->t[3]) < 0);
 
-  assert_true (tstamp_get_diff (ctx->t[0], ctx->t[2]) <= 0);
-  assert_true (tstamp_get_diff (ctx->t[1], ctx->t[3]) <= 0);
+  assert_true (bl_timept32_get_diff (ctx->t[0], ctx->t[2]) <= 0);
+  assert_true (bl_timept32_get_diff (ctx->t[1], ctx->t[3]) <= 0);
 
   err = ssc_run_teardown (ctx->sim);
   assert_true (!err.bl);
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-static const uword future_wait_delay_us = 6000; /*6ms*/
+static const bl_uword future_wait_delay_us = 6000; /*6ms*/
 /*---------------------------------------------------------------------------*/
 static void future_wait_fiber1(
   ssc_handle h, void* fiber_context, void* sim_context
@@ -182,8 +182,8 @@ static void future_wait_fiber1(
   ++g_ctx.fiber_count;
 
   ctx->t[0] = ssc_get_timestamp (h);
-  tstamp deadline = ctx->t[0]  + bl_tstamp_to_usec (future_wait_delay_us);
-  while (tstamp_get_diff (deadline, ssc_get_timestamp (h)) >= 0) {
+  bl_timept32 bl_deadline = ctx->t[0]  + bl_timept32_to_usec (future_wait_delay_us);
+  while (bl_timept32_get_diff (bl_deadline, ssc_get_timestamp (h)) >= 0) {
     ssc_yield (h);
   }
   ctx->t[1] = ssc_get_timestamp (h);
@@ -220,7 +220,7 @@ static int future_wait_test_setup (void **state)
   fibers[1] = ssc_fiber_cfg_rv(
     0, future_wait_fiber2, nullptr, nullptr, nullptr
     );
-  generic_test_setup (state, fibers, arr_elems (fibers));
+  generic_test_setup (state, fibers, bl_arr_elems (fibers));
   return 0;
 }
 /*---------------------------------------------------------------------------*/
@@ -236,28 +236,28 @@ static void future_wait_test (void **state)
   }
   while (ctx->fiber_count > 0);
 
-  assert_true (tstamp_get_diff (ctx->t[0], ctx->t[1]) < 0);
-  assert_true (tstamp_get_diff (ctx->t[2], ctx->t[3]) < 0);
+  assert_true (bl_timept32_get_diff (ctx->t[0], ctx->t[1]) < 0);
+  assert_true (bl_timept32_get_diff (ctx->t[2], ctx->t[3]) < 0);
 
-  assert_true (tstamp_get_diff (ctx->t[0], ctx->t[2]) <= 0);
-  assert_true (tstamp_get_diff (ctx->t[1], ctx->t[3]) <= 0);
+  assert_true (bl_timept32_get_diff (ctx->t[0], ctx->t[2]) <= 0);
+  assert_true (bl_timept32_get_diff (ctx->t[1], ctx->t[3]) <= 0);
 
   assert_true(
-      tstamp_get_diff (ctx->t[1], ctx->t[0]) >=
-        bl_tstamp_to_usec (future_wait_delay_us)
+      bl_timept32_get_diff (ctx->t[1], ctx->t[0]) >=
+        bl_timept32_to_usec (future_wait_delay_us)
       );
 
   assert_true(
-    tstamp_get_diff (ctx->t[3], ctx->t[2]) >=
-      bl_tstamp_to_usec (future_wait_delay_us)
+    bl_timept32_get_diff (ctx->t[3], ctx->t[2]) >=
+      bl_timept32_to_usec (future_wait_delay_us)
     );
   err = ssc_run_teardown (ctx->sim);
   assert_true (!err.bl);
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-static const uword future_produce_delay_us = 1000;
-static const uword future_produce_count    = 4;
+static const bl_uword future_produce_delay_us = 1000;
+static const bl_uword future_produce_count    = 4;
 /*---------------------------------------------------------------------------*/
 static void future_produce_fiber(
   ssc_handle h, void* fiber_context, void* sim_context
@@ -269,9 +269,9 @@ static void future_produce_fiber(
 
   ++g_ctx.fiber_count;
 
-  for (uword i = 0; i < future_produce_count; ++i) {
+  for (bl_uword i = 0; i < future_produce_count; ++i) {
     ssc_delay (h, future_produce_delay_us);
-    ssc_produce_static_output (h, memr16_rv ((void*) &fiber1_resp, 1));
+    ssc_produce_static_output (h, bl_memr16_rv ((void*) &fiber1_resp, 1));
     ctx->t[i] = ssc_get_timestamp (h);
   }
   --g_ctx.fiber_count;
@@ -283,7 +283,7 @@ static int future_produce_test_setup (void **state)
   fibers[0] = ssc_fiber_cfg_rv(
     0, future_produce_fiber, nullptr, nullptr, nullptr
     );
-  generic_test_setup (state, fibers, arr_elems (fibers));
+  generic_test_setup (state, fibers, bl_arr_elems (fibers));
   return 0;
 }
 /*---------------------------------------------------------------------------*/
@@ -296,7 +296,7 @@ static void future_produce_test (void **state)
   err = ssc_run_some (ctx->sim, future_produce_delay_us);
   assert_true (!err.bl);
   /*everything should be generated on the queue now*/
-  for (uword i = 0; i < future_produce_count; ++i) {
+  for (bl_uword i = 0; i < future_produce_count; ++i) {
     check_has_response (ctx, fiber1_resp, ctx->t[i], future_produce_delay_us);
   }
   err = ssc_run_teardown (ctx->sim);
@@ -304,9 +304,9 @@ static void future_produce_test (void **state)
 }
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
-static const uword future_context_switch_produce_delay_us     = 1000;
-static const uword future_context_switch_produce_delay_big_us = 50000;
-static const uword future_context_switch_produce_count        = 3;
+static const bl_uword future_context_switch_produce_delay_us     = 1000;
+static const bl_uword future_context_switch_produce_delay_big_us = 50000;
+static const bl_uword future_context_switch_produce_count        = 3;
 /*---------------------------------------------------------------------------*/
 static void future_context_switch_fiber(
   ssc_handle h, void* fiber_context, void* sim_context
@@ -318,16 +318,16 @@ static void future_context_switch_fiber(
 
   ++g_ctx.fiber_count;
 
-  uword i = 0;
+  bl_uword i = 0;
   for (i = 0; i < future_context_switch_produce_count; ++i) {
     ssc_delay (h, future_context_switch_produce_delay_us);
-    ssc_produce_static_output (h, memr16_rv ((void*) &fiber1_resp, 1));
+    ssc_produce_static_output (h, bl_memr16_rv ((void*) &fiber1_resp, 1));
     ctx->t[i] = ssc_get_timestamp (h);
   }
   /*this delay will force an internal context switch*/
   ssc_delay (h, future_context_switch_produce_delay_big_us);
   ctx->t[i] = ssc_get_timestamp (h);
-  ssc_produce_static_output (h, memr16_rv ((void*) &fiber1_resp, 1));
+  ssc_produce_static_output (h, bl_memr16_rv ((void*) &fiber1_resp, 1));
 
   --g_ctx.fiber_count;
 }
@@ -338,7 +338,7 @@ static int future_context_switch_test_setup (void **state)
   fibers[0] = ssc_fiber_cfg_rv(
     0, future_context_switch_fiber, nullptr, nullptr, nullptr
     );
-  generic_test_setup (state, fibers, arr_elems (fibers));
+  generic_test_setup (state, fibers, bl_arr_elems (fibers));
   return 0;
 }
 /*---------------------------------------------------------------------------*/
@@ -351,14 +351,14 @@ static void future_context_switch_produce_test (void **state)
   err = ssc_run_some (ctx->sim, future_context_switch_produce_delay_us);
   assert_true (!err.bl);
   /*retrieving messages before the context switch*/
-  uword i = 0;
+  bl_uword i = 0;
   for (; i < future_context_switch_produce_count; ++i) {
     check_has_response(
       ctx, fiber1_resp, ctx->t[i], future_context_switch_produce_delay_us
       );
   }
   /*checking that there are no more messages left*/
-  uword count;
+  bl_uword count;
   ssc_output_data read;
   err = ssc_read (ctx->sim, &count, &read, 1, 0);
   assert_true (err.bl == bl_timeout);

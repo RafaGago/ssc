@@ -14,21 +14,21 @@
 struct ssc_global;
 /*----------------------------------------------------------------------------*/
 typedef struct out_q_sorted_value {
-  memr16       data;
+  bl_memr16    data;
   ssc_group_id gid;
   ssc_out_type type;
 }
 out_q_sorted_value;
 /*----------------------------------------------------------------------------*/
 typedef struct ssc_out_q {
-  mpmc_bt                  queue;
-  flat_deadlines           tsorted;
+  bl_mpmc_bt               queue;
+  bl_flat_deadlines        tsorted;
   struct ssc_global const* global;
 }
 ssc_out_q;
 /*----------------------------------------------------------------------------*/
 extern bl_err ssc_out_q_init(
-  ssc_out_q* q, uword size, struct ssc_global const* global
+  ssc_out_q* q, bl_uword size, struct ssc_global const* global
   );
 /*----------------------------------------------------------------------------*/
 extern void ssc_out_q_destroy (ssc_out_q* q);
@@ -37,10 +37,10 @@ extern bl_err ssc_out_q_produce (ssc_out_q* q, ssc_output_data* d);
 /*----------------------------------------------------------------------------*/
 extern bl_err ssc_out_q_consume(
   ssc_out_q*       q,
-  uword*           d_consumed,
+  bl_uword*        d_consumed,
   ssc_output_data* d,
-  uword            d_capacity,
-  toffset          timeout_us
+  bl_uword         d_capacity,
+  bl_timeoft32       timeout_us
   );
 /*----------------------------------------------------------------------------*/
 

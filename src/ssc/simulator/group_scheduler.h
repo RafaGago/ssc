@@ -29,16 +29,16 @@ typedef struct gsched_fiber_cfg {
 gsched_fiber_cfg;
 /*----------------------------------------------------------------------------*/
 typedef struct gsched_fiber_wait_data {
-  tstamp   execute_time;
-  uword_d2 id;
+  bl_timept32   execute_time;
+  bl_uword_d2 id;
 }
 gsched_fiber_wait_data;
 /*----------------------------------------------------------------------------*/
 typedef struct gsched_fiber_queue_read_data {
-  u8 const* match;
-  u8 const* mask;
-  u16       match_size;
-  u16       mask_size;
+  bl_u8 const* match;
+  bl_u8 const* mask;
+  bl_u16       match_size;
+  bl_u16       mask_size;
 }
 gsched_fiber_queue_read_data;
 /*----------------------------------------------------------------------------*/
@@ -49,10 +49,10 @@ typedef union gsched_fiber_state_params {
 gsched_fiber_state_params;
 /*----------------------------------------------------------------------------*/
 typedef struct gsched_fiber_state {
-  tstamp                    time;
-  uword                     func_count;
+  bl_timept32                 time;
+  bl_uword                  func_count;
   gsched_fiber_state_params params;
-  u8                        id;
+  bl_u8                     id;
 }
 gsched_fiber_state;
 /*----------------------------------------------------------------------------*/
@@ -60,23 +60,23 @@ typedef struct gsched_fiber {
   gsched*            parent;
   coro_context       coro_ctx;
   struct coro_stack  stack;
-  ringb              queue;
+  bl_ringb           queue;
   gsched_fiber_cfg   cfg;
   gsched_fiber_state state;
 }
 gsched_fiber;
 /*----------------------------------------------------------------------------*/
 typedef struct gsched_fibers_node {
-  tailq_entry (gsched_fibers_node) hook;
-  gsched_fiber                     fiber;
+  bl_tailq_entry (gsched_fibers_node) hook;
+  gsched_fiber                        fiber;
 }
 gsched_fibers_node;
 /*----------------------------------------------------------------------------*/
-typedef tailq_head (gsched_fibers, gsched_fibers_node) gsched_fibers;
+typedef bl_tailq_head (gsched_fibers, gsched_fibers_node) gsched_fibers;
 /*----------------------------------------------------------------------------*/
 typedef struct gsched_wake_data {
-  uword_d2 id;
-  uword_d2 count;
+  bl_uword_d2 id;
+  bl_uword_d2 count;
 }
 gsched_wake_data;
 /*----------------------------------------------------------------------------*/
@@ -87,28 +87,28 @@ typedef union gsched_timed_value {
 gsched_timed_value;
 /*----------------------------------------------------------------------------*/
 typedef struct gsched_mainloop_vars {
-  tstamp   now;
-  u8*      unhandled_bstream;
-  bool     has_prog;
-  taskq_id prog_id;
-  tstamp   prog_tstamp;
+  bl_timept32   now;
+  bl_u8*      unhandled_bstream;
+  bool        has_prog;
+  bl_taskq_id prog_id;
+  bl_timept32   prog_timept32;
 }
 gsched_mainloop_vars;
 /*----------------------------------------------------------------------------*/
 typedef struct gsched {
   ssc_in_q              queue;
-  flat_deadlines        timed; /*state timeouts*/
+  bl_flat_deadlines     timed; /*state timeouts*/
   gsched_fibers         sq[3]; /*state queues*/
-  flat_deadlines        future_wakes;
+  bl_flat_deadlines     future_wakes;
   gsched_fibers         finished;
   ssc_fiber_cfgs const* fiber_cfgs;
   ssc_global*           global;
   ssc_group_id          gid;
-  tstamp                look_ahead_offset;
+  bl_timept32             look_ahead_offset;
   gsched_mainloop_vars  vars;
-  uword                 active_fibers;
-  uword                 produce_only_fibers;
-  u8*                   mem_chunk;
+  bl_uword              active_fibers;
+  bl_uword              produce_only_fibers;
+  bl_u8*                mem_chunk;
 }
 gsched;
 /*----------------------------------------------------------------------------*/
@@ -120,10 +120,10 @@ extern bl_err gsched_init(
   ssc_global*                global,
   ssc_fiber_group_cfg const* fgroup_cfg,
   ssc_fiber_cfgs const*      fiber_cfgs,
-  alloc_tbl const*           alloc
+  bl_alloc_tbl const*        alloc
   );
 /*----------------------------------------------------------------------------*/
-extern void gsched_destroy (gsched* gs, alloc_tbl const* alloc);
+extern void gsched_destroy (gsched* gs, bl_alloc_tbl const* alloc);
 /*----------------------------------------------------------------------------*/
 extern bl_err gsched_run_setup (gsched* gs);
 /*----------------------------------------------------------------------------*/
@@ -137,22 +137,22 @@ extern bl_err gsched_fiber_cfg_validate_correct (ssc_fiber_cfg* cfg);
 /*----------------------------------------------------------------------------*/
 extern void ssc_api_yield (ssc_handle h);
 /*----------------------------------------------------------------------------*/
-extern void ssc_api_wake (ssc_handle h, uword_d2 wait_id, uword_d2 count);
+extern void ssc_api_wake (ssc_handle h, bl_uword_d2 wait_id, bl_uword_d2 count);
 /*----------------------------------------------------------------------------*/
-extern bool ssc_api_wait (ssc_handle h, uword_d2 wait_id, toffset us);
+extern bool ssc_api_wait (ssc_handle h, bl_uword_d2 wait_id, bl_timeoft32 us);
 /*----------------------------------------------------------------------------*/
-extern memr16 ssc_api_peek_input_head (ssc_handle h);
+extern bl_memr16 ssc_api_peek_input_head (ssc_handle h);
 /*----------------------------------------------------------------------------*/
-extern memr16 ssc_api_timed_peek_input_head (ssc_handle h, toffset us);
+extern bl_memr16 ssc_api_timed_peek_input_head (ssc_handle h, bl_timeoft32 us);
 /*----------------------------------------------------------------------------*/
-extern memr16 ssc_api_try_peek_input_head (ssc_handle h);
+extern bl_memr16 ssc_api_try_peek_input_head (ssc_handle h);
 /*----------------------------------------------------------------------------*/
-extern memr16 ssc_api_peek_input_head_match_mask(
-  ssc_handle h, memr16 match, memr16 mask
+extern bl_memr16 ssc_api_peek_input_head_match_mask(
+  ssc_handle h, bl_memr16 match, bl_memr16 mask
   );
 /*----------------------------------------------------------------------------*/
-extern memr16 ssc_api_timed_peek_input_head_match_mask(
-  ssc_handle h, memr16 match, memr16 mask, toffset us
+extern bl_memr16 ssc_api_timed_peek_input_head_match_mask(
+  ssc_handle h, bl_memr16 match, bl_memr16 mask, bl_timeoft32 us
   );
 /*----------------------------------------------------------------------------*/
 extern void ssc_api_drop_input_head (ssc_handle h);
@@ -163,25 +163,25 @@ extern void ssc_api_produce_error(
   ssc_handle h, bl_err err, char const* static_string
   );
 /*----------------------------------------------------------------------------*/
-extern void ssc_api_produce_static_output (ssc_handle h, memr16 b);
+extern void ssc_api_produce_static_output (ssc_handle h, bl_memr16 b);
 /*----------------------------------------------------------------------------*/
-extern void ssc_api_produce_dynamic_output (ssc_handle h, memr16 b);
+extern void ssc_api_produce_dynamic_output (ssc_handle h, bl_memr16 b);
 /*----------------------------------------------------------------------------*/
 extern void ssc_api_produce_static_string(
-  ssc_handle h, char const* str, uword size_incl_trail_null
+  ssc_handle h, char const* str, bl_uword size_incl_trail_null
   );
 /*----------------------------------------------------------------------------*/
 extern void ssc_api_produce_dynamic_string(
-  ssc_handle h, char const* str, uword size_incl_trail_null
+  ssc_handle h, char const* str, bl_uword size_incl_trail_null
   );
 /*----------------------------------------------------------------------------*/
-extern void ssc_api_delay (ssc_handle h, toffset us);
+extern void ssc_api_delay (ssc_handle h, bl_timeoft32 us);
 /*----------------------------------------------------------------------------*/
-extern tstamp ssc_api_get_timestamp (ssc_handle h);
+extern bl_timept32 ssc_api_get_timestamp (ssc_handle h);
 /*----------------------------------------------------------------------------*/
-extern bool ssc_api_pattern_match (memr16 in, memr16 match);
+extern bool ssc_api_pattern_match (bl_memr16 in, bl_memr16 match);
 /*----------------------------------------------------------------------------*/
-extern bool ssc_api_pattern_match_mask (memr16 in, memr16 match, memr16 mask);
+extern bool ssc_api_pattern_match_mask (bl_memr16 in, bl_memr16 match, bl_memr16 mask);
 /*----------------------------------------------------------------------------*/
 extern ssc_fiber_run_cfg ssc_api_fiber_get_run_cfg (ssc_handle h);
 /*----------------------------------------------------------------------------*/

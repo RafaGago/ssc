@@ -15,27 +15,27 @@
 
 /*----------------------------------------------------------------------------*/
 typedef struct out_q_sorted_entry {
-  tstamp             time;
+  bl_timept32        time;
   out_q_sorted_value value;
 }
 out_q_sorted_entry;
 /*----------------------------------------------------------------------------*/
-static inline word out_q_sorted_value_cmp (void const* a, void const* b)
+static inline bl_word out_q_sorted_value_cmp (void const* a, void const* b)
 {
   out_q_sorted_entry const* ae = (out_q_sorted_entry const*) a;
   out_q_sorted_entry const* be = (out_q_sorted_entry const*) b;
   return memcmp (&ae->value, &be->value, sizeof ae->value);
 }
 /*----------------------------------------------------------------------------*/
-define_flat_deadlines_funcs(
+bl_define_flat_deadlines_funcs(
   out_q_sorted, out_q_sorted_entry, out_q_sorted_value_cmp
   )
 /*----------------------------------------------------------------------------*/
-bl_err ssc_out_q_init (ssc_out_q* q, uword size, ssc_global const* global)
+bl_err ssc_out_q_init (ssc_out_q* q, bl_uword size, ssc_global const* global)
 {
   bl_assert (q && global);
-  size       = round_next_pow2_u (size);
-  bl_err err = mpmc_bt_init(
+  size       = bl_round_next_pow2_u (size);
+  bl_err err = bl_mpmc_bt_init(
     &q->queue,
     global->alloc,
     size,
@@ -44,10 +44,10 @@ bl_err ssc_out_q_init (ssc_out_q* q, uword size, ssc_global const* global)
     );
   if (err.bl) { return err; }
   err = out_q_sorted_init(
-    &q->tsorted, bl_get_tstamp(), size * 4, global->alloc
+    &q->tsorted, bl_timept32_get(), size * 4, global->alloc
     );
   if (err.bl) {
-    mpmc_bt_destroy (&q->queue, global->alloc);
+    bl_mpmc_bt_destroy (&q->queue, global->alloc);
   }
   q->global = global;
   return err;
@@ -57,22 +57,22 @@ void ssc_out_q_destroy (ssc_out_q* q)
 {
   bl_assert (q);
   ssc_output_data dat;
-  uword           v;
+  bl_uword        v;
 
   while (ssc_out_q_consume (q, &v, &dat, 1, 0).bl == bl_ok) {
     ssc_out_memory_dealloc(
       q->global->sim_dealloc, q->global->sim_context, &dat
       );
   }
-  mpmc_bt_destroy (&q->queue, q->global->alloc);
+  bl_mpmc_bt_destroy (&q->queue, q->global->alloc);
   out_q_sorted_destroy (&q->tsorted, q->global->alloc);
 }
 /*----------------------------------------------------------------------------*/
 bl_err ssc_out_q_produce (ssc_out_q* q, ssc_output_data* d)
 {
   bl_assert (q && d);
-  mpmc_b_op op;
-  return mpmc_bt_produce_sp (&q->queue, &op, d);
+  bl_mpmc_b_op op;
+  return bl_mpmc_bt_produce_sp (&q->queue, &op, d);
 }
 /*----------------------------------------------------------------------------*/
 static inline void copy_to_output_data(
@@ -95,11 +95,12 @@ static inline void  copy_to_sorted_data(
    e->time       = d->time;
 }
 /*----------------------------------------------------------------------------*/
-static uword ssc_out_q_try_read (ssc_out_q* q, ssc_output_data* d, uword count)
+static bl_uword
+  ssc_out_q_try_read (ssc_out_q* q, ssc_output_data* d, bl_uword count)
 {
-  tstamp now         = bl_get_tstamp();
-  uword  copied      = 0;
-  uword  last_copied = 0;
+  bl_timept32 now         = bl_timept32_get();
+  bl_uword  copied      = 0;
+  bl_uword  last_copied = 0;
   out_q_sorted_entry const* outdata;
 
 try_again:
@@ -116,7 +117,7 @@ try_again:
     return copied;
   }
   last_copied = copied;
-  now         = bl_get_tstamp(); /*trying to save syscalls ot the tstamp*/
+  now         = bl_timept32_get(); /*trying to save syscalls ot the bl_timept32*/
   goto try_again; /* "while (1)" with no indentation */
 }
 /*----------------------------------------------------------------------------*/
@@ -124,10 +125,10 @@ static bool ssc_out_q_transfer (ssc_out_q* q)
 {
   bl_err err = bl_mkok();
   while (!err.bl && out_q_sorted_can_insert (&q->tsorted)) {
-    mpmc_b_op       op;
+    bl_mpmc_b_op       op;
     ssc_output_data d;
     out_q_sorted_entry e;
-    err = mpmc_bt_consume_sc (&q->queue, &op, &d);
+    err = bl_mpmc_bt_consume_sc (&q->queue, &op, &d);
     if (err.bl) { break; }
     copy_to_sorted_data (&e, &d);
     out_q_sorted_insert (&q->tsorted, &e);
@@ -137,38 +138,38 @@ static bool ssc_out_q_transfer (ssc_out_q* q)
 /*----------------------------------------------------------------------------*/
 bl_err ssc_out_q_consume(
   ssc_out_q*       q,
-  uword*           d_consumed,
+  bl_uword*        d_consumed,
   ssc_output_data* d,
-  uword            d_capacity,
-  toffset          timeout_us
+  bl_uword         d_capacity,
+  bl_timeoft32     timeout_us
   )
 {
   bl_assert (q && d && d_consumed);
   bl_assert (timeout_us >= 0);
   bl_assert (d_capacity > 0);
 
-  tstamp           deadline;
-  nonblock_backoff nb;
+  bl_timept32           bl_deadline;
+  bl_nonblock_backoff nb;
   bool             tsorted_not_full;
 
-  deadline_init (&deadline, (u32) timeout_us);
-  nonblock_backoff_init_default (&nb, timeout_us / 4);
+  bl_deadline32_init (&bl_deadline, (bl_u32) timeout_us);
+  bl_nonblock_backoff_init_default (&nb, timeout_us / 4);
 
 try_again:
   tsorted_not_full = ssc_out_q_transfer (q);
   *d_consumed      = ssc_out_q_try_read (q, d, d_capacity);
 
-  switch ((u_bitv (*d_consumed == 0, 1) | u_bitv (tsorted_not_full, 0))) {
+  switch ((bl_u_bitv (*d_consumed == 0, 1) | bl_u_bitv (tsorted_not_full, 0))) {
   case 0:
     ssc_out_q_transfer (q); /*making room on the SPSC queue now if necessary*/
     return bl_mkok();
   case 1:
     return bl_mkok(); /*fast-path*/
   case 2:{ /*edge case*/
-    mpmc_b_op        op;
-    ssc_output_data  d;
+    bl_mpmc_b_op       op;
+    ssc_output_data    d;
     out_q_sorted_entry e;
-    bl_err err = mpmc_bt_consume_sc (&q->queue, &op, &d);
+    bl_err err = bl_mpmc_bt_consume_sc (&q->queue, &op, &d);
     if (!err.bl) {
       out_q_sorted_entry const* drop = out_q_sorted_get_head (&q->tsorted);
       bl_assert (drop);
@@ -187,10 +188,10 @@ try_again:
   }
   d_capacity = 1; /*lowest latency to return something to the caller*/
 
-  if (deadline_expired (deadline)) {
+  if (bl_deadline32_expired (bl_deadline)) {
      return bl_mkerr (bl_timeout);
   }
-  nonblock_backoff_run (&nb);
+  bl_nonblock_backoff_run (&nb);
   goto try_again; /* "while (1)" with no indentation */
 }
 /*----------------------------------------------------------------------------*/
