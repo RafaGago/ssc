@@ -42,11 +42,11 @@ bl_err ssc_out_q_init (ssc_out_q* q, bl_uword size, ssc_global const* global)
     sizeof (ssc_output_data),
     bl_alignof (ssc_output_data)
     );
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
   err = out_q_sorted_init(
     &q->tsorted, bl_timept32_get(), size * 4, global->alloc
     );
-  if (err.bl) {
+  if (err.own) {
     bl_mpmc_bt_destroy (&q->queue, global->alloc);
   }
   q->global = global;
@@ -59,7 +59,7 @@ void ssc_out_q_destroy (ssc_out_q* q)
   ssc_output_data dat;
   bl_uword        v;
 
-  while (ssc_out_q_consume (q, &v, &dat, 1, 0).bl == bl_ok) {
+  while (ssc_out_q_consume (q, &v, &dat, 1, 0).own == bl_ok) {
     ssc_out_memory_dealloc(
       q->global->sim_dealloc, q->global->sim_context, &dat
       );
@@ -124,12 +124,12 @@ try_again:
 static bool ssc_out_q_transfer (ssc_out_q* q)
 {
   bl_err err = bl_mkok();
-  while (!err.bl && out_q_sorted_can_insert (&q->tsorted)) {
+  while (!err.own && out_q_sorted_can_insert (&q->tsorted)) {
     bl_mpmc_b_op       op;
     ssc_output_data d;
     out_q_sorted_entry e;
     err = bl_mpmc_bt_consume_sc (&q->queue, &op, &d);
-    if (err.bl) { break; }
+    if (err.own) { break; }
     copy_to_sorted_data (&e, &d);
     out_q_sorted_insert (&q->tsorted, &e);
   }
@@ -152,7 +152,7 @@ bl_err ssc_out_q_consume(
   bl_nonblock_backoff nb;
   bool             tsorted_not_full;
 
-  bl_deadline32_init (&bl_deadline, (bl_u32) timeout_us);
+  bl_timept32_deadline_init_usec (&bl_deadline, (bl_u32) timeout_us);
   bl_nonblock_backoff_init_default (&nb, timeout_us / 4);
 
 try_again:
@@ -170,7 +170,7 @@ try_again:
     ssc_output_data    d;
     out_q_sorted_entry e;
     bl_err err = bl_mpmc_bt_consume_sc (&q->queue, &op, &d);
-    if (!err.bl) {
+    if (!err.own) {
       out_q_sorted_entry const* drop = out_q_sorted_get_head (&q->tsorted);
       bl_assert (drop);
       copy_to_output_data (&d, drop);
@@ -188,7 +188,7 @@ try_again:
   }
   d_capacity = 1; /*lowest latency to return something to the caller*/
 
-  if (bl_deadline32_expired (bl_deadline)) {
+  if (bl_timept32_deadline_expired (bl_deadline)) {
      return bl_mkerr (bl_timeout);
   }
   bl_nonblock_backoff_run (&nb);

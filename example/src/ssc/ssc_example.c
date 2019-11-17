@@ -91,7 +91,7 @@ int write_console (void* context)
     }
     print_time (p, bl_timept32_get());
     bl_err err = ssc_write (p->sim, 0, mem, (bl_u16) ret);
-    if (!err.bl) {
+    if (!err.own) {
       printf ("-> %s\n", line);
     }
     else {
@@ -107,13 +107,13 @@ int main (int argc, char const* argv[])
   p.running         = 1;
   bl_uword timebase_us = 10000000;
   bl_err err        = ssc_create (&p.sim, "", &timebase_us);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "unable to create ssc: %s\n", bl_strerror (err));
-    return (int) err.bl;
+    return (int) err.own;
   }
   p.startup = bl_timept32_get();
   err       = ssc_run_setup (p.sim);
-  if (err.bl) {
+  if (err.own) {
     fprintf (stderr, "unable to run ssc setup: %s\n", bl_strerror (err));
     goto destroy;
   }
@@ -125,14 +125,14 @@ int main (int argc, char const* argv[])
     );
   bl_thread thr;
   bl_err thr_err = bl_thread_init (&thr, write_console, &p);
-  if (thr_err.bl != 0) {
+  if (thr_err.own != 0) {
     fprintf (stderr, "unable to start console thread\n");
     goto teardown;
   }
   ssc_output_data od[16];
   while (p.running) {
     err = ssc_run_some (p.sim, 100000);
-    if (err.bl && err.bl != bl_timeout) {
+    if (err.own && err.own != bl_timeout) {
       /*TODO*/
     }
     bl_uword read_msgs;
@@ -146,6 +146,6 @@ teardown:
   ssc_run_teardown (p.sim);
 destroy:
   ssc_destroy (p.sim);
-  return (int) err.bl;
+  return (int) err.own;
 }
 /*---------------------------------------------------------------------------*/

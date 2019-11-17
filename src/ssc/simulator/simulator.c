@@ -46,7 +46,7 @@ struct ssc {
 bl_err ssc_api_add_fiber (ssc_handle h, ssc_fiber_cfg const* cfg)
 {
   ssc* sim = (ssc*) h;
-  if (sim->err.bl) {
+  if (sim->err.own) {
     return sim->err;
   }
   ssc_fiber_cfgs* gcfg = nullptr;
@@ -55,7 +55,7 @@ bl_err ssc_api_add_fiber (ssc_handle h, ssc_fiber_cfg const* cfg)
   if (cfg->id == fg_cfgs_size) {
     /*fiber added to new fiber group*/
     sim->err = gsched_cfgs_grow (&sim->fg_cfgs, 1, &sim->alloc);
-    if (sim->err.bl) {
+    if (sim->err.own) {
       log_error ("fiber group cfgs resize error:\n", sim->err);
       return sim->err;
     }
@@ -74,13 +74,13 @@ bl_err ssc_api_add_fiber (ssc_handle h, ssc_fiber_cfg const* cfg)
     return bl_mkerr (bl_invalid);
   }
   sim->err = ssc_fiber_cfgs_grow (gcfg, 1, &sim->alloc);
-  if (sim->err.bl) {
+  if (sim->err.own) {
     log_error ("fiber cfgs resize error:\n", sim->err);
     return sim->err;
   }
   *ssc_fiber_cfgs_last (gcfg) = *cfg;
   sim->err = gsched_fiber_cfg_validate_correct (ssc_fiber_cfgs_last (gcfg));
-  if (sim->err.bl) {
+  if (sim->err.own) {
     log_error(
       "fiber cfg validation error:%u, on group:%u\n", sim->err, cfg->id
       );
@@ -176,7 +176,7 @@ SSC_SIM_EXPORT bl_err ssc_create(
 
   /*libload*/
   bl_err err = ssc_simulation_load (&sim->lib, simlib_path);
-  if (err.bl) {
+  if (err.own) {
     /*error already logged*/
     goto mem_dealloc;
   }
@@ -193,7 +193,7 @@ SSC_SIM_EXPORT bl_err ssc_create(
     global_cfg.min_out_queue_size,
     &sim->global
     );
-  if (err.bl) {
+  if (err.own) {
     log_error ("error initializing out queue:%u\n", err);
     goto libunload;
   }
@@ -203,7 +203,7 @@ SSC_SIM_EXPORT bl_err ssc_create(
   err = ssc_simulation_on_setup(
     &sim->lib, sim, simlib_passed_data, &sim->global.sim_context
     );
-  if (err.bl) {
+  if (err.own) {
     log_error ("error when running \"ssc_sim_on_setup\":%u\n", err);
     goto destroy_cfgs;
   }
@@ -213,7 +213,7 @@ SSC_SIM_EXPORT bl_err ssc_create(
     err = bl_mkerr (bl_error);
     goto destroy_cfgs;
   }
-  if (sim->err.bl) {
+  if (sim->err.own) {
     /*error already logged*/
     err = sim->err;
     goto simulator_teardown;
@@ -223,7 +223,7 @@ SSC_SIM_EXPORT bl_err ssc_create(
   bl_uword regular, delayed;
   ssc_estimate_taskq_size (sim, &regular, &delayed);
   err =bl_taskq_init (&sim->global.tq, &sim->alloc, regular, delayed);
-  if (err.bl) {
+  if (err.own) {
     log_error ("error creating task queue:%u\n", err);
     goto simulator_teardown;
   }
@@ -233,7 +233,7 @@ SSC_SIM_EXPORT bl_err ssc_create(
   ssc_fiber_group_cfg_init (&group_cfg); /*exposing cfg is TBD TODO*/
   for (bl_uword i = 0; i < group_count; ++i) {
     err = gscheds_grow (&sim->groups, 1, &sim->alloc);
-    if (err.bl) {
+    if (err.own) {
       log_error ("error allocating fiber group:%u\n", err);
       goto destroy_taskq;
     }
@@ -242,7 +242,7 @@ SSC_SIM_EXPORT bl_err ssc_create(
     err = gsched_init(
       g, i, &sim->global, &group_cfg, gf_cfgs, &sim->alloc
       );
-    if (err.bl) {
+    if (err.own) {
       log_error ("error intializing fiber group %u: %u\n", i, err);
       goto destroy_fiber_groups;
     }
@@ -307,7 +307,7 @@ SSC_SIM_EXPORT bl_err ssc_run_setup (ssc* sim)
 
   while (g < gscheds_end (&sim->groups)) {
     err = gsched_run_setup (g);
-    if (err.bl) {
+    if (err.own) {
       goto rollback;
     }
     ++g;
@@ -384,7 +384,7 @@ SSC_SIM_EXPORT bl_err ssc_write(
   gsched* g = gscheds_at (&sim->groups, q);
   bool idle_signal;
   err = ssc_in_q_produce (&g->queue, in_bstream, &idle_signal);
-  if (err.bl) {
+  if (err.own) {
     goto dealloc;
   }
   if (idle_signal) {

@@ -193,7 +193,7 @@ static void generic_test_setup(
   g_env.teardown  = sim_on_teardown_test;
 
   bl_err err = ssc_create (&g_ctx.sim, "", &g_env);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   *state = (void*) &g_ctx;
 }
 /*---------------------------------------------------------------------------*/
@@ -261,25 +261,25 @@ static void queue_no_match_test (void **state)
 {
   basic_tests_ctx* ctx = (basic_tests_ctx*) *state;
   bl_err err = ssc_run_setup (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (ctx->fsetup_count == 1);
 
   bl_uword           count;
   ssc_output_data read;
 
   err = ssc_try_run_some (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   err = ssc_read (ctx->sim, &count, &read, 1, 0);
-  assert_true (err.bl == bl_timeout);
+  assert_true (err.own == bl_timeout);
 
   for (bl_uword i = 0; i < 5; ++i) {
     err = ssc_try_run_some (ctx->sim);
-    assert_true (err.bl == bl_nothing_to_do);
+    assert_true (err.own == bl_nothing_to_do);
     err = ssc_read (ctx->sim, &count, &read, 1, 0);
-    assert_true (err.bl == bl_timeout);
+    assert_true (err.own == bl_timeout);
   }
   err = ssc_run_teardown (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (ctx->fteardown_count == 1);
   assert_true (ctx->teardown_count == 1);
 }
@@ -288,15 +288,15 @@ static void queue_match_test (void **state)
 {
   basic_tests_ctx* ctx = (basic_tests_ctx*) *state;
   bl_err err = ssc_run_setup (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (ctx->fsetup_count == 1);
 
   err = ssc_try_run_some (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   bl_uword count;
   ssc_output_data read;
   err = ssc_read (ctx->sim, &count, &read, 1, 0);
-  assert_true (err.bl == bl_timeout);
+  assert_true (err.own == bl_timeout);
 
   /*writing non matching data*/
   bl_u8* send = ssc_alloc_write_bytestream (ctx->sim, 1);
@@ -304,17 +304,17 @@ static void queue_match_test (void **state)
 
   *send = fiber_match - 1;
   err  = ssc_write (ctx->sim, 0, send, 1);
-  assert (!err.bl);
+  assert (!err.own);
 
   do {
     err = ssc_try_run_some (ctx->sim);
-    assert_true (!err.bl || err.bl == bl_nothing_to_do);
+    assert_true (!err.own || err.own == bl_nothing_to_do);
   }
-  while (err.bl != bl_nothing_to_do);
+  while (err.own != bl_nothing_to_do);
 
   /*checking that it didn't match*/
   err = ssc_read (ctx->sim, &count, &read, 1, 0);
-  assert_true (err.bl == bl_timeout);
+  assert_true (err.own == bl_timeout);
 
   /*writing matching data*/
   send = ssc_alloc_write_bytestream (ctx->sim, 1);
@@ -322,17 +322,17 @@ static void queue_match_test (void **state)
 
   *send = fiber_match;
   err  = ssc_write (ctx->sim, 0, send, 1);
-  assert (!err.bl);
+  assert (!err.own);
 
   do {
     err = ssc_try_run_some (ctx->sim);
-    assert_true (!err.bl || err.bl == bl_nothing_to_do);
+    assert_true (!err.own || err.own == bl_nothing_to_do);
   }
-  while (err.bl != bl_nothing_to_do);
+  while (err.own != bl_nothing_to_do);
 
   /*checking that it did match*/
   err = ssc_read (ctx->sim, &count, &read, 1, 0);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (read.type == ssc_type_dynamic_bytes);
   assert_true (read.gid == 0);
   bl_memr16 rd = ssc_output_read_as_bytes (&read);
@@ -347,7 +347,7 @@ static void queue_match_test (void **state)
   assert_true (ctx->dealloc.id == 0);
 
   err = ssc_run_teardown (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (ctx->fteardown_count == 1);
   assert_true (ctx->teardown_count == 1);
 }
@@ -356,22 +356,22 @@ static void answer_after_blocking_timeout_test (void **state)
 {
   basic_tests_ctx* ctx = (basic_tests_ctx*) *state;
   bl_err err = ssc_run_setup (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (ctx->fsetup_count == 1);
 
   bl_uword count;
   ssc_output_data read;
   err = ssc_run_some (ctx->sim, queue_timeout_us * 20);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   err = ssc_read (ctx->sim, &count, &read, 1, 0);
-  assert_true (err.bl == bl_timeout);
+  assert_true (err.own == bl_timeout);
 
   err = ssc_run_some (ctx->sim, queue_timeout_us * 20);
-  assert_true (!err.bl);
+  assert_true (!err.own);
 
   /*checking that the fiber did actually time out and went out of scope*/
   err = ssc_read (ctx->sim, &count, &read, 1, queue_timeout_us * 20);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (read.type == ssc_type_dynamic_bytes);
   assert_true (read.gid == 0);
   bl_memr16 rd = ssc_output_read_as_bytes (&read);
@@ -380,7 +380,7 @@ static void answer_after_blocking_timeout_test (void **state)
   assert_true (*bl_memr16_beg_as (rd, bl_u8) == fiber_resp);
 
   err = ssc_run_teardown (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (ctx->teardown_count == 1);
 }
 /*---------------------------------------------------------------------------*/
@@ -388,14 +388,14 @@ static void timeout_correctly_cancelled_test (void **state)
 {
   basic_tests_ctx* ctx = (basic_tests_ctx*) *state;
   bl_err err = ssc_run_setup (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (ctx->fsetup_count == 1);
 
   bl_uword count;
   ssc_output_data read;
 
   err = ssc_try_run_some (ctx->sim);
-  assert_true (!err.bl); /*fiber blocked on queue with timeout active*/
+  assert_true (!err.own); /*fiber blocked on queue with timeout active*/
 
   /*writing matching data*/
   bl_u8* send = ssc_alloc_write_bytestream (ctx->sim, 1);
@@ -403,15 +403,15 @@ static void timeout_correctly_cancelled_test (void **state)
 
   *send = fiber_match;
   err  = ssc_write (ctx->sim, 0, send, 1);
-  assert (!err.bl);
+  assert (!err.own);
 
   /*checking that the fiber did actually receive the message an is blocked*/
   err = ssc_try_run_some (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   /*fiber blocked on queue without timeout now, check message on the read queue
     to confirm*/
   err = ssc_read (ctx->sim, &count, &read, 1, queue_timeout_us * 20);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (read.type == ssc_type_dynamic_bytes);
   assert_true (read.gid == 0);
   bl_memr16 rd = ssc_output_read_as_bytes (&read);
@@ -433,7 +433,7 @@ static void timeout_correctly_cancelled_test (void **state)
 
   /*Success*/
   err = ssc_run_teardown (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (ctx->teardown_count == 1);
 }
 /*---------------------------------------------------------------------------*/
@@ -441,21 +441,21 @@ static void delay_test (void **state)
 {
   basic_tests_ctx* ctx = (basic_tests_ctx*) *state;
   bl_err err = ssc_run_setup (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (ctx->fsetup_count == 1);
 
   bl_uword count;
   ssc_output_data read;
 
   err = ssc_run_some (ctx->sim, queue_timeout_us * 20);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   /*on this test the delays are just making forward progress without waiting
     (ahead of real time), so the content is already on the output queue with
     a time point on the future. We will succeed always, as the read
     timeout is "queue_timeout_us * 20". With a timeout of 0 this test would
     fail (given a regular OS scheduler time slice duration)*/
   err = ssc_read (ctx->sim, &count, &read, 1, queue_timeout_us * 20);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (read.type == ssc_type_dynamic_bytes);
   assert_true (read.gid == 0);
   bl_memr16 rd = ssc_output_read_as_bytes (&read);
@@ -464,7 +464,7 @@ static void delay_test (void **state)
   assert_true (*bl_memr16_beg_as (rd, bl_u8) == fiber_resp);
 
   err = ssc_run_teardown (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (ctx->teardown_count == 1);
 }
 /*---------------------------------------------------------------------------*/

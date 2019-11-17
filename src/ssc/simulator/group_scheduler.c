@@ -167,7 +167,7 @@ static inline bl_uword fibers_get_chunk_size (ssc_fiber_cfgs const* fiber_cfgs)
 {
   bl_uword size = 0;
   for (bl_uword i = 0; i < ssc_fiber_cfgs_size (fiber_cfgs); ++i) {
-    bl_static_assert_ns(
+    bl_static_assert_ns_funcscope(
       bl_next_offset_aligned_to_type (sizeof (gsched_fibers_node), bl_u8*) ==
       sizeof (gsched_fibers_node)
       );
@@ -294,7 +294,7 @@ bool ssc_api_wait (ssc_handle h, bl_uword_d2 wait_id, bl_timeoft32 us)
     e.time     = fn->fiber.state.time + bl_usec_to_timept32 (us);
     e.value.fn = fn;
     bl_assert_side_effect(
-      gsched_timed_insert (&fn->fiber.parent->timed, &e).bl == bl_ok
+      gsched_timed_insert (&fn->fiber.parent->timed, &e).own == bl_ok
       );
   }
   fiber_node_yield_to_sched (fn);
@@ -604,12 +604,12 @@ void ssc_api_produce_error(
   ssc_output_data dat;
   dat.gid  = fn->fiber.parent->gid;
   dat.type = ssc_type_error;
-  dat.data = bl_memr16_rv ((void*) static_string, err.bl);
+  dat.data = bl_memr16_rv ((void*) static_string, err.own);
   dat.time = fn->fiber.state.time;
 
   bl_err e = ssc_out_q_produce (&gs->global->out_queue, &dat);
   log_error_if(
-    e.bl != bl_ok, "unable to produce output data on fiber: %s", bl_strerror (e)
+    e.own != bl_ok, "unable to produce output data on fiber: %s", bl_strerror (e)
     );
   fiber_node_forward_progress_limit (gs, fn);
 }
@@ -627,7 +627,7 @@ static void ssc_produce_output_impl (ssc_handle h, bl_memr16 b, bool dyn)
 
   bl_err e = ssc_out_q_produce (&gs->global->out_queue, &dat);
   log_error_if(
-    e.bl != bl_ok, "unable to produce output data on fiber: %s", bl_strerror (e)
+    e.own != bl_ok, "unable to produce output data on fiber: %s", bl_strerror (e)
     );
   fiber_node_forward_progress_limit (gs, fn);
 }
@@ -653,7 +653,7 @@ static void ssc_produce_string_impl(
 
   bl_err e = ssc_out_q_produce (&gs->global->out_queue, &dat);
   log_error_if(
-    e.bl != bl_ok, "unable to produce output data on fiber: %s", bl_strerror (e)
+    e.own != bl_ok, "unable to produce output data on fiber: %s", bl_strerror (e)
     );
   fiber_node_forward_progress_limit (gs, fn);
 }
@@ -792,7 +792,7 @@ bl_err gsched_init(
       (bl_uword) addr, gsched_fibers_node
       );
     err = fiber_init (next, gs->vars.now, gs, queue_elems, cfg);
-    if (err.bl) {
+    if (err.own) {
       goto rollback;
     }
     if (node) {
@@ -807,7 +807,7 @@ bl_err gsched_init(
   err = ssc_in_q_init(
     &gs->queue,bl_round_next_pow2_u (fgroup_cfg->min_queue_size), alloc
     );
-  if (err.bl) {
+  if (err.own) {
     goto rollback;
   }
   bl_timept32 now = bl_timept32_get();
@@ -818,12 +818,12 @@ bl_err gsched_init(
     bl_next_pow2_u (ssc_fiber_cfgs_size (fiber_cfgs)),
     alloc
     );
-  if (err.bl) {
+  if (err.own) {
     goto destroy_q;
   }
   /*future wakes queue*/
   err = gsched_timed_init (&gs->future_wakes, now, 32, alloc);
-  if (err.bl) {
+  if (err.own) {
     goto destroy_timed;
   }
   return err;
@@ -911,14 +911,14 @@ bl_err gsched_run_setup (gsched* gs)
     if (f) {
       err = f (fn->fiber.cfg.context, fn->fiber.parent->global->sim_context);
     }
-    if (err.bl) {
+    if (err.own) {
       goto rollback;
     }
     ++i;
     node_queue_transfer_tail (&gs->sq[q_run], &gs->finished, fn);
   }
   err = gsched_program_schedule (gs);
-  if (err.bl) {
+  if (err.own) {
     goto rollback;
   }
   return err;
@@ -964,13 +964,13 @@ static inline bl_uword gsched_consume_inputs (gsched* gs, bl_timept32* now)
 {
   bl_u8*   input[16];
   bl_uword count = 0;
-  bl_static_assert_ns (bl_is_pow2 (bl_arr_elems (input)));
+  bl_static_assert_ns_funcscope (bl_is_pow2 (bl_arr_elems (input)));
   bl_uword idx;
   /*consume inputs from the outside*/
   do {
     idx = 0;
     if (gs->vars.unhandled_bstream) {
-      bl_static_assert_ns (bl_arr_elems (input) > 1);
+      bl_static_assert_ns_funcscope (bl_arr_elems (input) > 1);
       input[idx] = gs->vars.unhandled_bstream;
       ++idx;
       gs->vars.unhandled_bstream = nullptr;
@@ -1065,7 +1065,7 @@ static inline void gsched_try_schedule_to_nearest_timed_event (gsched* gs)
       &gs->vars.prog_id,
       gs->vars.prog_timept32,
      bl_taskq_task_rv (gsched_loop_from_timed_event, gs)
-      ).bl == bl_ok
+      ).own == bl_ok
     );
   gs->vars.has_prog = true;
 }
@@ -1191,29 +1191,29 @@ static void gsched_loop (gsched* gs,bl_taskq_id id, bool from_timed_event)
   }
   ssc_in_q_sig prev_sig;
   bl_err err = ssc_in_q_try_switch_to_idle (&gs->queue, &prev_sig);
-  if (err.bl == bl_preconditions && prev_sig == in_q_ok) {
+  if (err.own == bl_preconditions && prev_sig == in_q_ok) {
     /* new data, group may make immediate forward progress */
      goto reschedule;
   }
   else {
     /* no immediate forward progress is possible*/
     bl_assert(
-      (!err.bl) ||
-      (err.bl == bl_preconditions && (prev_sig == in_q_sig_idle)) ||
-      (err.bl == bl_preconditions && (prev_sig == in_q_blocked))
+      (!err.own) ||
+      (err.own == bl_preconditions && (prev_sig == in_q_sig_idle)) ||
+      (err.own == bl_preconditions && (prev_sig == in_q_blocked))
       );
     gsched_try_schedule_to_nearest_timed_event (gs);
     return;
   }
 reschedule:
-  bl_assert_side_effect (gsched_program_schedule (gs).bl == bl_ok);
+  bl_assert_side_effect (gsched_program_schedule (gs).own == bl_ok);
 }
 /*----------------------------------------------------------------------------*/
 static void gsched_loop_from_timed_event(
   bl_err error,bl_taskq_id id, void* context
   )
 {
-  if (bl_unlikely (error.bl)) {
+  if (bl_unlikely (error.own)) {
     return;
   }
   gsched_loop ((gsched*) context, id, true);
@@ -1223,7 +1223,7 @@ static void gsched_loop_regular(
   bl_err error,bl_taskq_id id, void* context
   )
 {
-  if (bl_unlikely (error.bl)) {
+  if (bl_unlikely (error.own)) {
     return;
   }
   gsched_loop ((gsched*) context, id, false);

@@ -355,70 +355,70 @@ bl_err ssc_sim_on_setup(
 
   cfg.fiber = produce_error_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber = produce_static_bytes_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber = produce_dynamic_bytes_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber = produce_static_string_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber = produce_dynamic_string_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber = try_peek_input_head_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber = peek_input_head_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber = peek_input_head_match_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber = peek_input_head_match_mask_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber = timed_peek_input_head_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber = timed_peek_input_head_match_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber = timed_peek_input_head_match_mask_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber = timestamp_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber = sem_wake_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber = sem_wait_fiber;
   err       = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   cfg.fiber         = setup_and_teardown_fiber;
   cfg.setup         = fiber_setup_func;
   cfg.teardown      = fiber_teardown_func;
   cfg.fiber_context = &c->setup_teardown_data;
   err               = ssc_add_fiber (h, &cfg);
-  if (err.bl) { return err; }
+  if (err.own) { return err; }
 
   return bl_mkok();
 }

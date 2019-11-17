@@ -12,11 +12,11 @@ bl_err ssc_in_q_init(
   bl_err err = bl_mpmc_bt_init(
     &q->queue, alloc, queue_size, sizeof (bl_u8*), bl_alignof (bl_u8*)
     );
-  if (!err.bl) {
+  if (!err.own) {
     bl_assert_side_effect(
       bl_mpmc_bt_producer_signal_try_set_tmatch(
         &q->queue, &q->last_op, in_q_sig_idle
-        ).bl == bl_ok);
+        ).own == bl_ok);
   }
   return err;
 }
@@ -44,7 +44,7 @@ bl_err ssc_in_q_block (ssc_in_q* q)
   while(
     bl_mpmc_bt_producer_signal_try_set_tmatch(
       &q->queue, &expected, in_q_blocked
-      ).bl == bl_preconditions
+      ).own == bl_preconditions
     );
   return bl_mkok();
 }
@@ -65,11 +65,11 @@ bl_err ssc_in_q_produce (ssc_in_q* q, bl_u8* in_bstream, bool* idle)
   bl_err err = bl_mpmc_bt_produce_sig_fallback(
     &q->queue, &op, &in_bstream, true, in_q_ok, in_q_blocked, in_q_blocked
     );
-  if (err.bl == bl_ok) {
+  if (err.own == bl_ok) {
     *idle = (bl_mpmc_b_sig_decode (op) == in_q_sig_idle);
   }
   else {
-    err.bl = (err.bl != bl_preconditions) ? err.bl : bl_locked;
+    err.own = (err.own != bl_preconditions) ? err.own : bl_locked;
   }
   return err;
 }

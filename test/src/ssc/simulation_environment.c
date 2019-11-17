@@ -13,7 +13,7 @@ bl_err ssc_sim_on_setup(
   ssc_fiber_cfg const* cfg = env->cfg;
   for (bl_uword i = 0; i < env->cfg_count; ++i) {
     bl_err err = ssc_add_fiber (h, cfg);
-    if (err.bl) {
+    if (err.own) {
       return err;
     }
     ++cfg;

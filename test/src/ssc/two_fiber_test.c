@@ -37,7 +37,7 @@ static inline void check_has_response(
   bl_uword count;
   ssc_output_data read;
   bl_err err = ssc_read (ctx->sim, &count, &read, 1, t);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   assert_true (read.type == ssc_type_static_bytes);
   assert_true (read.gid == 0);
   bl_memr16 rd = ssc_output_read_as_bytes (&read);
@@ -140,7 +140,7 @@ static void generic_test_setup(
   g_env.teardown  = sim_on_teardown_test;
 
   bl_err err = ssc_create (&g_ctx.sim, "", &g_env);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   *state = (void*) &g_ctx;
 }
 /*---------------------------------------------------------------------------*/
@@ -171,21 +171,21 @@ static void queue_two_fiber_test (void **state)
 {
   two_fiber_tests_ctx* ctx = (two_fiber_tests_ctx*) *state;
   bl_err err = ssc_run_setup (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
 
   bl_uword count;
   ssc_output_data read;
 
   err = ssc_try_run_some (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   err = ssc_read (ctx->sim, &count, &read, 1, 0);
-  assert_true (err.bl == bl_timeout);
+  assert_true (err.own == bl_timeout);
 
   for (bl_uword i = 0; i < 5; ++i) {
     err = ssc_try_run_some (ctx->sim);
-    assert_true (err.bl == bl_nothing_to_do);
+    assert_true (err.own == bl_nothing_to_do);
     err = ssc_read (ctx->sim, &count, &read, 1, 0);
-    assert_true (err.bl == bl_timeout);
+    assert_true (err.own == bl_timeout);
   }
 
   for (bl_uword i = 0; i < 5; ++i) {
@@ -194,11 +194,11 @@ static void queue_two_fiber_test (void **state)
     assert_non_null (send);
     *send = fiber1_match;
     err  = ssc_write (ctx->sim, 0, send, 1);
-    assert (!err.bl);
+    assert (!err.own);
 
     /*running fiber 1*/
     err = ssc_try_run_some (ctx->sim);
-    assert_true (!err.bl);
+    assert_true (!err.own);
 
     /*checking that fiber 1 replied*/
     check_has_response (ctx, fiber1_resp, 0);
@@ -210,18 +210,18 @@ static void queue_two_fiber_test (void **state)
     assert_non_null (send);
     *send = fiber2_match;
     err  = ssc_write (ctx->sim, 0, send, 1);
-    assert (!err.bl);
+    assert (!err.own);
 
     /*running fiber 2*/
     err = ssc_try_run_some (ctx->sim);
-    assert_true (!err.bl);
+    assert_true (!err.own);
 
     /*checking that fiber 2 replied*/
     check_has_response (ctx, fiber2_resp, 0);
   }
 
   err = ssc_run_teardown (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
 }
 /*---------------------------------------------------------------------------*/
 static int wait_wake_test_setup (void **state)
@@ -241,21 +241,21 @@ static void wait_wake_test (void **state)
 {
   two_fiber_tests_ctx* ctx = (two_fiber_tests_ctx*) *state;
   bl_err err = ssc_run_setup (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
 
   bl_uword count;
   ssc_output_data read;
 
   err = ssc_try_run_some (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
   err = ssc_read (ctx->sim, &count, &read, 1, 0);
-  assert_true (err.bl == bl_timeout);
+  assert_true (err.own == bl_timeout);
 
   for (bl_uword i = 0; i < 5; ++i) {
     err = ssc_try_run_some (ctx->sim);
-    assert_true (err.bl == bl_nothing_to_do);
+    assert_true (err.own == bl_nothing_to_do);
     err = ssc_read (ctx->sim, &count, &read, 1, 0);
-    assert_true (err.bl == bl_timeout);
+    assert_true (err.own == bl_timeout);
   }
 
   for (bl_uword i = 0; i < 5; ++i) {
@@ -264,20 +264,20 @@ static void wait_wake_test (void **state)
     assert_non_null (send);
     *send = fiber1_match;
     err  = ssc_write (ctx->sim, 0, send, 1);
-    assert (!err.bl);
+    assert (!err.own);
 
     /*running fiber 1 and fiber 2*/
     err = ssc_try_run_some (ctx->sim);
-    assert_true (!err.bl);
+    assert_true (!err.own);
     /*  fiber can be just woken but not executed on the same slice*/
     err = ssc_try_run_some (ctx->sim);
-    assert_true (!err.bl || err.bl == bl_nothing_to_do);
+    assert_true (!err.own || err.own == bl_nothing_to_do);
 
     /*checking that fiber 2 replied*/
     check_has_response (ctx, fiber2_resp, 0);
   }
   err = ssc_run_teardown (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
 }
 /*---------------------------------------------------------------------------*/
 static const bl_uword select_lowest_next_msgs     = 3;
@@ -328,19 +328,19 @@ static void select_lowest_next_test (void **state)
   /*tests that the event with the lowest bl_deadline is always selected*/
   two_fiber_tests_ctx* ctx = (two_fiber_tests_ctx*) *state;
   bl_err err = ssc_run_setup (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
 
   for (bl_uword i = 0; i < select_lowest_next_msgs; ++i) {
     /*i == 0 -> initial run, i != 0 -> yield */
     err = ssc_try_run_some (ctx->sim);
-    assert_true (!err.bl);
+    assert_true (!err.own);
     /*wait + produce*/
     err = ssc_run_some (ctx->sim, select_lowest_short_timeout);
-    assert_true (!err.bl);
+    assert_true (!err.own);
     check_has_response (ctx, fiber2_resp, 0);
   }
   err = ssc_run_teardown (ctx->sim);
-  assert_true (!err.bl);
+  assert_true (!err.own);
 }
 /*---------------------------------------------------------------------------*/
 static const struct CMUnitTest tests[] = {
